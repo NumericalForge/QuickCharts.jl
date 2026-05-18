@@ -1,5 +1,10 @@
 # QuickCharts.jl
 
+
+[![docs-stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://numericalforge.github.io/QuickCharts.jl/stable/)
+[![docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://numericalforge.github.io/QuickCharts.jl/dev/)
+
+
 `QuickCharts.jl` is a lightweight Julia package for chart-oriented plotting with Cairo output.
 
 It focuses on a compact set of figure-building tools: `Chart` for single plots, `ChartGrid` for composed layouts, and supporting types for colors, legends, annotations, and math-aware text rendering.
@@ -37,14 +42,10 @@ save(chart, "chart.svg", "chart.pdf")
 
 ## Documentation
 
-Build the docs locally with:
+Online documentation is available at:
 
-```julia
-using Pkg
-Pkg.activate("docs")
-Pkg.instantiate()
-include("docs/make.jl")
-```
+https://numericalforge.github.io/QuickCharts.jl/dev/
+
 
 ## License
 
