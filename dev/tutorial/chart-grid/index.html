@@ -5,6 +5,7 @@ x = collect(0:0.25:2π)
 
 signal = Chart(
     title = &quot;Signals&quot;,
+    background = :white,
     xlabel = &quot;`x`&quot;,
     ylabel = &quot;amplitude&quot;,
     legend = :bottom_right,
@@ -14,6 +15,7 @@ add_line(signal, x, cos.(x); color = :royal_blue, line_style = :dash, label = &q
 
 energy = Chart(
     title = &quot;Energy&quot;,
+    background = :white,
     xlabel = &quot;`x`&quot;,
     ylabel = &quot;`sin^2(x)`&quot;,
     legend = :top_right,
@@ -22,6 +24,7 @@ add_line(energy, x, sin.(x).^2; color = :dark_orange, label = &quot;`sin^2(x)`&q
 
 samples = Chart(
     title = &quot;Samples&quot;,
+    background = :white,
     xlabel = &quot;`x`&quot;,
     ylabel = &quot;`sin(x)`&quot;,
     legend = :bottom_left,
@@ -30,15 +33,15 @@ add_scatter(samples, x[1:3:end], sin.(x[1:3:end]); color = :green, label = &quot
 
 bars = Chart(
     title = &quot;Categories&quot;,
+    background = :white,
     xlabel = &quot;category&quot;,
     ylabel = &quot;value&quot;,
     legend = :top_left,
 )
-add_bar(bars, 1:4, [1.2, 0.8, 1.6, 1.1]; color = :steel_blue, label = &quot;value&quot;)
-nothing</code></pre><h2 id="Place-Charts-in-a-Grid"><a class="docs-heading-anchor" href="#Place-Charts-in-a-Grid">Place Charts in a Grid</a><a id="Place-Charts-in-a-Grid-1"></a><a class="docs-heading-anchor-permalink" href="#Place-Charts-in-a-Grid" title="Permalink"></a></h2><p>Use <code>add_chart(grid, chart, (row, column))</code> to place each child. Rows and columns are one-based, and the grid grows to fit the largest occupied row and column.</p><pre><code class="language-julia hljs">grid = ChartGrid(
+add_bar(bars, 1:4, [1.2, 0.8, 1.6, 1.1]; color = :steel_blue, label = &quot;value&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">DataSeries(:bar, n=4, label=&quot;value&quot;, style=:none, mark=:none, order=1)</code></pre><h2 id="Place-Charts-in-a-Grid"><a class="docs-heading-anchor" href="#Place-Charts-in-a-Grid">Place Charts in a Grid</a><a id="Place-Charts-in-a-Grid-1"></a><a class="docs-heading-anchor-permalink" href="#Place-Charts-in-a-Grid" title="Permalink"></a></h2><p>Use <code>add_chart(grid, chart, (row, column))</code> to place each child. Rows and columns are one-based, and the grid grows to fit the largest occupied row and column.</p><pre><code class="language-julia hljs">grid = ChartGrid(
     title = &quot;Signal Summary&quot;,
-    size = (18cm, 12cm),
-    background = :old_paper,
+    size = (21cm, 16cm),
+    background = :white,
     column_headers = [&quot;Continuous&quot;, &quot;Discrete&quot;],
     row_headers = [&quot;Waveforms&quot;, &quot;Derived&quot;],
     hgap = 10.0,
@@ -50,9 +53,9 @@ add_chart(grid, samples, (1, 2))
 add_chart(grid, energy, (2, 1))
 add_chart(grid, bars, (2, 2))
 
-save(grid, &quot;tutorial-chart-grid.svg&quot;)
-nothing</code></pre><p>Child chart backgrounds are ignored while drawing inside a grid. The grid background supplies the page fill, while each child keeps its own axes, series, legend, and annotations.</p><h2 id="Nested-Grids"><a class="docs-heading-anchor" href="#Nested-Grids">Nested Grids</a><a id="Nested-Grids-1"></a><a class="docs-heading-anchor-permalink" href="#Nested-Grids" title="Permalink"></a></h2><p>A <code>ChartGrid</code> can also be placed inside another <code>ChartGrid</code>, which is handy when one panel needs its own sub-layout.</p><pre><code class="language-julia hljs">left = ChartGrid(
+save(grid, &quot;tutorial-chart-grid.svg&quot;)</code></pre><p><img src="../tutorial-chart-grid.svg" alt/></p><p>Child chart backgrounds are ignored while drawing inside a grid. The grid background supplies the page fill, while each child keeps its own axes, series, legend, and annotations.</p><h2 id="Nested-Grids"><a class="docs-heading-anchor" href="#Nested-Grids">Nested Grids</a><a id="Nested-Grids-1"></a><a class="docs-heading-anchor-permalink" href="#Nested-Grids" title="Permalink"></a></h2><p>A <code>ChartGrid</code> can also be placed inside another <code>ChartGrid</code>, which is handy when one panel needs its own sub-layout.</p><pre><code class="language-julia hljs">left = ChartGrid(
     title = &quot;Trigonometry&quot;,
+    background = :white,
     column_headers = [&quot;Signal&quot;, &quot;Energy&quot;],
     hgap = 8.0,
 )
@@ -63,10 +66,9 @@ nested = ChartGrid(
     title = &quot;Nested Layout&quot;,
     size = (18cm, 9cm),
     column_headers = [&quot;Grouped Charts&quot;, &quot;Bars&quot;],
-    background = :white_smoke,
+    background = :white,
 )
 add_chart(nested, left, (1, 1))
 add_chart(nested, bars, (1, 2))
 
-save(nested, &quot;tutorial-nested-grid.svg&quot;)
-nothing</code></pre><p>Use nested grids sparingly: they are best when the grouping itself communicates structure, not just to squeeze more plots onto a page.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../chart-basics/">« Chart Tutorial</a><a class="docs-footer-nextpage" href="../../api/reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 18 May 2026 17:56">Monday 18 May 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+save(nested, &quot;tutorial-nested-grid.svg&quot;)</code></pre><p>Use nested grids sparingly: they are best when the grouping itself communicates structure, not just to squeeze more plots onto a page.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../chart-basics/">« Chart Tutorial</a><a class="docs-footer-nextpage" href="../../api/reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 18 May 2026 21:25">Monday 18 May 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
