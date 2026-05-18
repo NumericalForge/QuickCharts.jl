@@ -1,0 +1,14 @@
+include("colors.jl")
+include("typesetting.jl")
+include("text.jl")
+
+include("figure.jl")
+include("canvas.jl")
+include("axis.jl")
+include("legend.jl")
+include("annotation.jl")
+
+include("data-series.jl")
+include("chart.jl")
+include("chart-grid.jl")
+include("show.jl")

@@ -1,0 +1,49 @@
+const root = @__DIR__
+
+import Pkg
+Pkg.develop(Pkg.PackageSpec(path = joinpath(root, "..")))
+Pkg.instantiate()
+
+using Documenter
+using QuickPlots
+
+repo_slug = get(ENV, "GITHUB_REPOSITORY", "")
+remote_repo = nothing
+if !isempty(repo_slug)
+    owner, repo = split(repo_slug, "/", limit = 2)
+    remote_repo = Documenter.Remotes.GitHub(owner, repo)
+end
+
+makedocs(
+    root = root,
+    modules = [QuickPlots],
+    sitename = "QuickPlots.jl",
+    pagesonly = true,
+    checkdocs = :exports,
+    doctest = true,
+    remotes = nothing,
+    format = Documenter.HTML(
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        collapselevel = 1,
+    ),
+    pages = [
+        "Introduction" => "index.md",
+        "Manual" => [
+            "Getting Started" => "manual/getting-started.md",
+            "Chart Tutorial" => "tutorial/chart-basics.md",
+            "ChartGrid Tutorial" => "tutorial/chart-grid.md",
+        ],
+        "API Reference" => [
+            "Reference" => "api/reference.md",
+        ],
+    ],
+)
+
+if !isempty(repo_slug)
+    deploydocs(
+        devbranch = "main",
+        target = "build",
+        branch = "gh-pages",
+        repo = "github.com/$(repo_slug).git",
+    )
+end
