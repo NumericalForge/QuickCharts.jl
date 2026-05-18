@@ -1,22 +1,22 @@
 __precompile__()
 
 """
-QuickPlots provides lightweight chart-oriented plotting primitives backed by
+QuickCharts provides lightweight chart-oriented plotting primitives backed by
 Cairo, including single charts, chart grids, annotations, legends, colors, and
 math-aware text rendering.
 """
-module QuickPlots
+module QuickCharts
 
 using Cairo
 using LinearAlgebra
 using Printf
 import FreeTypeAbstraction
 
-mutable struct QuickPlotsException <: Exception
+mutable struct QuickChartsException <: Exception
     message::String
 end
 
-Base.showerror(io::IO, e::QuickPlotsException) = printstyled(io, "QuickPlotsException: ", e.message, "\n", color = :red)
+Base.showerror(io::IO, e::QuickChartsException) = printstyled(io, "QuickChartsException: ", e.message, "\n", color = :red)
 
 include("include.jl")
 

@@ -1,4 +1,4 @@
-# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+# This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 """
     Chart(; 
@@ -44,7 +44,7 @@ Construct a 2D chart figure with axes, legend, and optional tick customization.
 
 # Example
 ```julia
-using QuickPlots: Chart, cm
+using QuickCharts: Chart, cm
 
 ch = Chart(size=(8cm, 6cm),
            title="Response History",
@@ -326,7 +326,7 @@ should rely on the mutation, not on a particular return.
 """
 function configure!(c::Chart)
 
-    length(c.dataseries) > 0 || throw(QuickPlotsException("No dataseries added to the chart"))
+    length(c.dataseries) > 0 || throw(QuickChartsException("No dataseries added to the chart"))
 
     c.outerpad = 0.01 * min(c.width, c.height)
     c.figure_frame = Frame(c.figure_frame.x, c.figure_frame.y, c.width, c.height)

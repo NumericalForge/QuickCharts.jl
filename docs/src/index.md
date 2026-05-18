@@ -1,12 +1,12 @@
 ```@meta
 DocTestSetup = quote
-    using QuickPlots
+    using QuickCharts
 end
 ```
 
-# QuickPlots.jl
+# QuickCharts.jl
 
-`QuickPlots.jl` provides chart-focused plotting primitives for building publication-ready figures:
+`QuickCharts.jl` provides chart-focused plotting primitives for building publication-ready figures:
 
 - `Chart` for line, scatter, and bar plots.
 - `ChartGrid` for multi-panel layouts.
@@ -20,7 +20,7 @@ The package centers on a small plotting surface: single charts, chart grids, leg
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/NumericalForge/QuickPlots.jl")
+Pkg.add(url="https://github.com/NumericalForge/QuickCharts.jl")
 ```
 
 ## Documentation Map

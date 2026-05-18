@@ -1,6 +1,6 @@
 # Getting Started
 
-QuickPlots builds figures from a small set of plotting primitives:
+QuickCharts builds figures from a small set of plotting primitives:
 
 - `Chart` creates a single set of axes.
 - `add_line`, `add_scatter`, and `add_bar` add data series.
@@ -18,7 +18,7 @@ provided for convenient centimeter-based sizes.
 Load the package, prepare data, and create a chart:
 
 ```@example getting_started
-using QuickPlots
+using QuickCharts
 
 x = collect(0:0.5:6)
 y = sin.(x)
@@ -26,7 +26,7 @@ y = sin.(x)
 chart = Chart(
     size = (15cm, 10cm),
     title = "Sine Response",
-    font_size = 10.0,
+    font_size = 12.0,
     background = :white,
     xlabel = "`x`",
     ylabel = "`sin(x)`",
@@ -49,7 +49,7 @@ save(chart, "getting-started.svg")
 
 ![](getting-started.svg)
 
-QuickPlots renders to `.pdf`, `.png`, `.svg`, and `.ps`.
+QuickCharts renders to `.pdf`, `.png`, `.svg`, and `.ps`.
 
 ## Text and Math
 
@@ -98,4 +98,4 @@ add_scatter(color_chart, x, cos.(x); color = (0.1, 0.5, 0.2), label = "points")
 save(color_chart, "getting-started-colors.pdf")
 ```
 
-When `color = :auto`, QuickPlots cycles through its default chart palette.
+When `color = :auto`, QuickCharts cycles through its default chart palette.

@@ -1,5 +1,5 @@
 using Test
-using QuickPlots
+using QuickCharts
 
 X = collect(1:5)
 Y = [1.5, 2.2, 0.1, 1.1, 2.8]

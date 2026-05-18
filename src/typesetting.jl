@@ -1,4 +1,4 @@
-# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+# This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 const _typeset_symbols = Dict(
     "alpha" => "α", "beta" => "β", "gamma" => "γ", "delta" => "δ", "epsilon" => "ε", "varepsilon" => "ε",

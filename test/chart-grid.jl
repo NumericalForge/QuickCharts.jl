@@ -1,4 +1,4 @@
-using QuickPlots
+using QuickCharts
 using Test
 
 X = collect(0:0.25:2π)
@@ -57,12 +57,12 @@ add_chart(grid, chart2, (1, 2))
 add_chart(grid, subgrid, (2, 1))
 add_chart(grid, chart3, (2, 2))
 
-QuickPlots.configure!(grid)
-nested_header_width = QuickPlots.getsize("Nested", grid.font_size)[1]
+QuickCharts.configure!(grid)
+nested_header_width = QuickCharts.getsize("Nested", grid.font_size)[1]
 @test grid.row_header_boxes[2].frame.width < nested_header_width
 subgrid_frame = grid.cell_frames[(2, 1)]
-QuickPlots._set_grid_frame!(subgrid, subgrid_frame)
-QuickPlots.configure!(subgrid)
+QuickCharts._set_grid_frame!(subgrid, subgrid_frame)
+QuickCharts.configure!(subgrid)
 @test subgrid.figure_frame.x == subgrid_frame.x
 @test subgrid.figure_frame.y == subgrid_frame.y
 @test subgrid.title_box.frame.y >= subgrid_frame.y

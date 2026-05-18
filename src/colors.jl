@@ -1,4 +1,4 @@
-# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+# This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 export Color, lighten, darken, gray
 
@@ -193,7 +193,7 @@ Integer constructors interpret RGB channels as 8-bit values in `0:255` and the
 alpha channel as a normalized value. Tuple inputs may contain either 3 or 4
 channels and are dispatched to the numeric constructors. Symbol inputs use the
 built-in named color table, including browser-style names such as `:royal_blue`
-and QuickPlots palette names such as `:c1`.
+and QuickCharts palette names such as `:c1`.
 
 Out-of-range channel values are clamped.
 """
@@ -309,7 +309,7 @@ Represent a scalar-to-color lookup table.
 length. A `Colormap` is callable: `cmap(x)` returns an interpolated RGB tuple,
 clamped to the first or last color outside the stop range.
 
-The named constructor loads one of QuickPlots' built-in maps. `limits=[lo, hi]`
+The named constructor loads one of QuickCharts' built-in maps. `limits=[lo, hi]`
 clips the stop range before use, and `rev=true` reverses the map.
 """
 struct Colormap
@@ -324,7 +324,7 @@ end
 
 
 function Colormap(cmap_name::Symbol; limits=Float64[], rev=false)
-    cmap_name in _colormaps_list || throw(QuickPlotsException("Colormap: colormap not found which must be one of $(_colormaps_list)"))
+    cmap_name in _colormaps_list || throw(QuickChartsException("Colormap: colormap not found which must be one of $(_colormaps_list)"))
     colormap = _colormaps_dict[cmap_name]
 
     length(limits)==2 && (colormap = clip_colormap(colormap, limits))

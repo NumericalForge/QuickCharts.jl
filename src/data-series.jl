@@ -1,4 +1,4 @@
-# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+# This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 const _line_style_list = [:none, :solid, :dot, :dash, :dashdot]
 const _mark_list = [:none, :circle, :square, :triangle, :utriangle, :cross, :xcross, :diamond, :pentagon, :hexagon, :star, :hatch, :hash]

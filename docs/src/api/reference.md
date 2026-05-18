@@ -1,5 +1,5 @@
 ```@meta
-CurrentModule = QuickPlots
+CurrentModule = QuickCharts
 ```
 
 # Reference
@@ -7,7 +7,7 @@ CurrentModule = QuickPlots
 ## Module
 
 ```@docs
-QuickPlots
+QuickCharts
 ```
 
 ## Constants

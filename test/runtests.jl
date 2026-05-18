@@ -1,7 +1,7 @@
 using Test
-using QuickPlots
+using QuickCharts
 
-@testset "QuickPlots" begin
+@testset "QuickCharts" begin
     include("axis.jl")
     include("chart.jl")
     include("bar-chart.jl")

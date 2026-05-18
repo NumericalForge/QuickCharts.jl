@@ -1,20 +1,20 @@
 using Test
-using QuickPlots
+using QuickCharts
 
-w1, h1 = QuickPlots.getsize("Axial \$sigma_n\$", 8.0)
-w2, h2 = QuickPlots.getsize("Axial `sigma_n`", 8.0)
+w1, h1 = QuickCharts.getsize("Axial \$sigma_n\$", 8.0)
+w2, h2 = QuickCharts.getsize("Axial `sigma_n`", 8.0)
 @test isapprox(w1, w2; atol=1.0e-6)
 @test isapprox(h1, h2; atol=1.0e-6)
 
-wm, hm = QuickPlots.getsize("Load `P` at \$x\$", 8.0)
+wm, hm = QuickCharts.getsize("Load `P` at \$x\$", 8.0)
 @test wm > 0
 @test hm > 0
 
-math_nodes = QuickPlots.parse_typeset("`xAh`")
+math_nodes = QuickCharts.parse_typeset("`xAh`")
 @test [n.text for n in math_nodes] == ["x", "A", "h"]
 @test all(n.italic for n in math_nodes)
 
-greek_nodes = QuickPlots.parse_typeset("`alpha Gamma varepsilon times partial`")
+greek_nodes = QuickCharts.parse_typeset("`alpha Gamma varepsilon times partial`")
 @test [n.text for n in greek_nodes] == ["α", "Γ", "ε", "×", "∂"]
 @test [n.italic for n in greek_nodes] == [true, true, true, false, false]
 

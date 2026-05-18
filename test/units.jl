@@ -1,5 +1,5 @@
 using Test
-using QuickPlots
+using QuickCharts
 using Cairo: read_from_png, width, height, image_surface_get_data
 
 function svg_dimension(svg, attr)
@@ -21,11 +21,11 @@ series_show = sprint(show, series)
 chart_show = sprint(show, chart)
 @test chart_show == "Chart(size=$(chart.width) x $(chart.height) pt, axes=\"`x`\" vs \"`y`\", series=1, annotations=0, legend=:top_right)"
 @test sprint(show, MIME("text/plain"), chart) == chart_show
-@test !occursin("QuickPlots.Frame", chart_show)
-@test !occursin("QuickPlots.Axis", chart_show)
+@test !occursin("QuickCharts.Frame", chart_show)
+@test !occursin("QuickCharts.Axis", chart_show)
 
 chart_pdf = joinpath("output", "chart-cm.pdf")
-QuickPlots.save(chart, chart_pdf)
+QuickCharts.save(chart, chart_pdf)
 
 chart_svg = render(chart)
 @test startswith(chart_svg, "<?xml")
@@ -63,11 +63,11 @@ add_chart(grid, chart, (1, 1))
 grid_show = sprint(show, grid)
 @test grid_show == "ChartGrid(size=$(grid.width) x $(grid.height) pt, layout=1 x 1, children=1, column_headers=0, row_headers=0)"
 @test sprint(show, MIME("text/plain"), grid) == grid_show
-@test !occursin("QuickPlots.Frame", grid_show)
+@test !occursin("QuickCharts.Frame", grid_show)
 @test !occursin("Dict", grid_show)
 
 grid_png_file = joinpath("output", "chart-grid-cm.png")
-QuickPlots.save(grid, grid_png_file)
+QuickCharts.save(grid, grid_png_file)
 grid_png = read_from_png(grid_png_file)
-@test Int(width(grid_png)) == round(Int, QuickPlots._png_raster_scale * grid.width)
-@test Int(height(grid_png)) == round(Int, QuickPlots._png_raster_scale * grid.height)
+@test Int(width(grid_png)) == round(Int, QuickCharts._png_raster_scale * grid.width)
+@test Int(height(grid_png)) == round(Int, QuickCharts._png_raster_scale * grid.height)

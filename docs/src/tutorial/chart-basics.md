@@ -9,7 +9,7 @@ Start with data and a `Chart`. Empty `xlimits` and `ylimits` use automatic
 limits, while explicit two-element vectors fix the range.
 
 ```@example chart_tutorial
-using QuickPlots
+using QuickCharts
 
 x = collect(0:0.25:2π)
 
@@ -99,6 +99,7 @@ Bars use the same chart object and legend machinery:
 bar_chart = Chart(
     size = (15cm, 10cm),
     title = "Bar Values",
+    font_size = 12.0,
     background = :white,
     xlabel = "Category",
     ylabel = "Value",

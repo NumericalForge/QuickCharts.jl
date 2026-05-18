@@ -1,5 +1,5 @@
 using Test
-using QuickPlots
+using QuickCharts
 
 
 X = collect(0:0.4:8)

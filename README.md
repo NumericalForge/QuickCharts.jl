@@ -1,24 +1,24 @@
-# QuickPlots.jl
+# QuickCharts.jl
 
-`QuickPlots.jl` is a lightweight Julia package for chart-oriented plotting with Cairo output.
+`QuickCharts.jl` is a lightweight Julia package for chart-oriented plotting with Cairo output.
 
 It focuses on a compact set of figure-building tools: `Chart` for single plots, `ChartGrid` for composed layouts, and supporting types for colors, legends, annotations, and math-aware text rendering.
 
-![QuickPlots showcase](docs/src/assets/readme-showcase.svg)
+![QuickCharts showcase](docs/src/assets/readme-showcase.svg)
 
 ## Installation
 
-Until `QuickPlots.jl` is registered, install it directly from the GitHub repository:
+Until `QuickCharts.jl` is registered, install it directly from the GitHub repository:
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/NumericalForge/QuickPlots.jl")
+Pkg.add(url="https://github.com/NumericalForge/QuickCharts.jl")
 ```
 
 ## Quick Start
 
 ```julia
-using QuickPlots
+using QuickCharts
 
 x = collect(0:0.2:2π)
 chart = Chart(

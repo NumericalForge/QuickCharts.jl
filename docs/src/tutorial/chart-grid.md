@@ -10,7 +10,7 @@ Create the child charts first. Each child can use its own labels, limits, and
 legend placement.
 
 ```@example chart_grid_tutorial
-using QuickPlots
+using QuickCharts
 
 x = collect(0:0.25:2π)
 
@@ -91,6 +91,7 @@ one panel needs its own sub-layout.
 ```@example chart_grid_tutorial
 left = ChartGrid(
     title = "Trigonometry",
+    font_size = 12.0,
     background = :white,
     column_headers = ["Signal", "Energy"],
     hgap = 8.0,

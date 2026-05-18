@@ -1,4 +1,4 @@
-# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+# This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 # Cache is required to avoid repeated font-discovery lookups.
 const _resolved_font_family_cache = Dict{String, String}()
@@ -73,7 +73,7 @@ end
 Measure rendered text and return `(width, height)` in points.
 
 The first method uses the current font family from `cc`; the second creates a
-temporary Cairo context using QuickPlots' default font fallback. Text is parsed
+temporary Cairo context using QuickCharts' default font fallback. Text is parsed
 with the same math-aware typesetting engine used for chart labels, titles, and
 annotations.
 """

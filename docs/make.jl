@@ -5,7 +5,7 @@ Pkg.develop(Pkg.PackageSpec(path = joinpath(root, "..")))
 Pkg.instantiate()
 
 using Documenter
-using QuickPlots
+using QuickCharts
 
 repo_slug = get(ENV, "GITHUB_REPOSITORY", "")
 remote_repo = nothing
@@ -16,8 +16,8 @@ end
 
 makedocs(
     root = root,
-    modules = [QuickPlots],
-    sitename = "QuickPlots.jl",
+    modules = [QuickCharts],
+    sitename = "QuickCharts.jl",
     pagesonly = true,
     checkdocs = :exports,
     doctest = true,

@@ -1,4 +1,4 @@
-# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+# This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 abstract type Figure
     # width::Float64
@@ -225,7 +225,7 @@ function save(figure::Figure, files::String...)
             base_matrix = CairoMatrix([_png_raster_scale, 0, 0, _png_raster_scale, 0, 0]...)
         else
             formats = join(_available_formats, ", ", " and ")
-            throw(QuickPlotsException("Cannot save image to format $fmt. Available formats are: $formats"))
+            throw(QuickChartsException("Cannot save image to format $fmt. Available formats are: $formats"))
         end
 
         cairo_ctx = CairoContext(surf)

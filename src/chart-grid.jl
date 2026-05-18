@@ -1,4 +1,4 @@
-# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+# This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 """
     ChartGrid(; title="", size=(420,320), font="serif", font_size=10.0,
@@ -154,7 +154,7 @@ end
 
 
 function configure!(grid::ChartGrid)
-    length(grid.children) > 0 || throw(QuickPlotsException("ChartGrid: no child figures added"))
+    length(grid.children) > 0 || throw(QuickChartsException("ChartGrid: no child figures added"))
 
     grid.figure_frame = Frame(grid.figure_frame.x, grid.figure_frame.y, grid.width, grid.height)
     grid.outerpad = max(0.01 * min(grid.width, grid.height), grid.outerpad)
