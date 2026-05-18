@@ -1,3 +1,4 @@
+# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
 
 """
     Annotation(text::AbstractString, x::Real, y::Real; kwargs...)
@@ -33,7 +34,7 @@ mutable struct Annotation <: FigureComponent
         alignment::Symbol=:auto,
         target::Union{Nothing,AbstractArray{<:Real,1}}=nothing,
         line_width::Real=0.4,
-        font::AbstractString="NewComputerModern",
+        font::AbstractString="serif",
         font_size::Real=6.0,
         color::Symbol=:black
     )

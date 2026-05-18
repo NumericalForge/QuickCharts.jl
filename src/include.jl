@@ -1,3 +1,5 @@
+# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+
 include("colors.jl")
 include("typesetting.jl")
 include("text.jl")

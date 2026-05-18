@@ -2,7 +2,7 @@
 
 """
     Chart(; 
-        size=(220,150), font="NewComputerModern", font_size=7.0,
+        size=(220,150), font="serif", font_size=7.0,
         xlimits, ylimits, aspect_ratio=:auto,
         nxticks=7, nyticks=6,
         title="", background=nothing,
@@ -81,7 +81,7 @@ mutable struct Chart <: Figure
     function Chart(;
         size=(220, 150),
         font="NewComputerModern",
-        font_size::Real=7.0,
+        font_size::Real=12.0,
         xlimits=Float64[],
         ylimits=Float64[],
         aspect_ratio=:auto,

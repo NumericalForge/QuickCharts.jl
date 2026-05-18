@@ -14,8 +14,9 @@ using QuickPlots
 x = collect(0:0.25:2π)
 
 chart = Chart(
-    size = (10cm, 7cm),
+    size = (15cm, 10cm),
     title = "Trigonometric Responses",
+    background = :white,
     xlabel = "`x`",
     ylabel = "`f(x)`",
     xlimits = [0, 2π],
@@ -31,7 +32,10 @@ chart = Chart(
 ```@example chart_tutorial
 add_line(chart, x, sin.(x); mark = :circle, label = "`sin(x)`")
 add_line(chart, x, cos.(x); color = :royal_blue, line_style = :dash, label = "`cos(x)`")
+save(chart, "tutorial-lines.svg")
 ```
+
+![](tutorial-lines.svg)
 
 `add_scatter` defaults to points without connecting lines:
 
@@ -44,7 +48,10 @@ add_scatter(
     mark = :diamond,
     label = "`sin(x) cos(x)`",
 )
+save(chart, "tutorial-scatter.svg")
 ```
+
+![](tutorial-scatter.svg)
 
 ## Add Tags and Annotations
 
@@ -82,14 +89,17 @@ extension.
 save(chart, "tutorial-chart.svg")
 ```
 
+![](tutorial-chart.svg)
+
 ## Bar Charts
 
 Bars use the same chart object and legend machinery:
 
 ```@example chart_tutorial
 bar_chart = Chart(
-    size = (9cm, 6cm),
+    size = (15cm, 10cm),
     title = "Bar Values",
+    background = :white,
     xlabel = "Category",
     ylabel = "Value",
     legend = :top_left,
@@ -105,3 +115,5 @@ add_bar(
 
 save(bar_chart, "tutorial-bars.svg")
 ```
+
+![](tutorial-bars.svg)

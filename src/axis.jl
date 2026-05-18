@@ -11,7 +11,7 @@ Creates an `Axis` component.
   If `:none`, it becomes `:bottom` for horizontal and `:left` for vertical.
 - `limits::Vector{Float64}` : Axis limits `[min, max]`. Use `Float64[]` for auto limits.
 - `label::AbstractString` : Axis label text (default `""`).
-- `font::AbstractString` : Font family for label and ticks (default `"NewComputerModern"`).
+- `font::AbstractString` : Font family for label and ticks (default `"serif"`).
 - `font_size::Float64` : Font size (> 0, default `7.0`).
 - `ticks::AbstractArray` : Explicit tick positions (default `Float64[]`).
 - `tick_labels::AbstractArray` : Labels for ticks (default `String[]`). Must match `length(ticks)` when provided.
@@ -52,7 +52,7 @@ mutable struct Axis<:FigureComponent
         location::Symbol=:none,
         limits::AbstractVector{<:Real}=Float64[],
         label::AbstractString="",
-        font::String="NewComputerModern",
+        font::String="serif",
         font_size::Real=7.0,
         ticks::AbstractArray=Real[],
         tick_labels::AbstractArray=String[],

@@ -1,3 +1,5 @@
+# This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
+
 abstract type Figure
     # width::Float64
     # height::Float64

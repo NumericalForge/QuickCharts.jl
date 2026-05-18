@@ -12,17 +12,6 @@ const _typeset_symbols = Dict(
     "times" => "×", "nabla" => "∇", "partial" => "∂", "cdot" => "⋅",
 )
 
-const _typeset_math_italic_symbols = Dict(
-    "alpha" => "𝛼", "beta" => "𝛽", "gamma" => "𝛾", "delta" => "𝛿", "epsilon" => "𝜀", "varepsilon" => "𝜖",
-    "zeta" => "𝜁", "eta" => "𝜂", "theta" => "𝜃", "iota" => "𝜄", "kappa" => "𝜅", "lambda" => "𝜆",
-    "mu" => "𝜇", "nu" => "𝜈", "xi" => "𝜉", "omicron" => "𝜊", "pi" => "𝜋", "rho" => "𝜌",
-    "sigma" => "𝜎", "tau" => "𝜏", "upsilon" => "𝜐", "phi" => "𝜑", "chi" => "𝜒", "psi" => "𝜓", "omega" => "𝜔",
-    "Alpha" => "𝛢", "Beta" => "𝛣", "Gamma" => "𝛤", "Delta" => "𝛥", "Epsilon" => "𝛦", "Zeta" => "𝛧",
-    "Eta" => "𝛨", "Theta" => "𝛩", "Iota" => "𝛪", "Kappa" => "𝛫", "Lambda" => "𝛬", "Mu" => "𝛭",
-    "Nu" => "𝛮", "Xi" => "𝛯", "Omicron" => "𝛰", "Pi" => "𝛱", "Rho" => "𝛲", "Sigma" => "𝛴",
-    "Tau" => "𝛵", "Upsilon" => "𝛶", "Phi" => "𝛷", "Chi" => "𝛸", "Psi" => "𝛹", "Omega" => "𝛺",
-)
-
 const _typeset_functions = Set([
     "sin", "cos", "tan", "asin", "acos", "atan",
     "sinh", "cosh", "tanh",
@@ -116,23 +105,6 @@ end
 @inline _isletter(c::Char) = isletter(c)
 @inline _isdigit(c::Char) = isdigit(c)
 
-function _math_italic_latin(c::Char)
-    if 'A' <= c <= 'Z'
-        return Char(0x1D434 + Int(c) - Int('A'))
-    elseif 'a' <= c <= 'g'
-        return Char(0x1D44E + Int(c) - Int('a'))
-    elseif c == 'h'
-        return Char(0x210E)
-    elseif 'i' <= c <= 'z'
-        return Char(0x1D456 + Int(c) - Int('i'))
-    end
-    return c
-end
-
-function _math_variable_atom(c::Char)
-    return TSAtom(string(_math_italic_latin(c)), false, false)
-end
-
 @inline function _skip_spaces(s::AbstractString, i::Int)
     while i <= lastindex(s) && isspace(s[i])
         i = _next(s, i)
@@ -142,7 +114,7 @@ end
 
 function _atom_from_char(c::Char; in_math::Bool=false)
     if in_math && _isletter(c)
-        return _math_variable_atom(c)
+        return TSAtom(string(c), true, false)
     end
     return TSAtom(string(c), false, false)
 end
@@ -157,15 +129,12 @@ end
 
 function _identifier_nodes(name::AbstractString)
     if haskey(_typeset_symbols, name)
-        if haskey(_typeset_math_italic_symbols, name)
-            return TypesetNode[TSAtom(_typeset_math_italic_symbols[name], false, false)]
-        end
         italic = !haskey(_typeset_nonitalic_symbols, name)
         return TypesetNode[TSAtom(_typeset_symbols[name], italic, false)]
     elseif name in _typeset_functions
         return TypesetNode[TSAtom(name, false, false)]
     else
-        return [_math_variable_atom(c) for c in name]
+        return [TSAtom(string(c), true, false) for c in name]
     end
 end
 
@@ -892,7 +861,7 @@ function _layout_nodes!(cc::CairoContext, nodes::Vector{TypesetNode}, font::Stri
     return current_x - x
 end
 
-function layout_typeset(cc::CairoContext, text::AbstractString, fontsize::Float64; font::String="NewComputerModern")
+function layout_typeset(cc::CairoContext, text::AbstractString, fontsize::Float64; font::String="serif")
     nodes = parse_typeset(text)
     glyphs = GlyphElem[]
     rules = RuleElem[]
@@ -909,7 +878,7 @@ function layout_typeset(cc::CairoContext, text::AbstractString, fontsize::Float6
     return TypesetLayout(glyphs, rules, width, height, min_y[], max_y[])
 end
 
-function draw_typeset_layout!(cc::CairoContext, layout::TypesetLayout; font::String="NewComputerModern")
+function draw_typeset_layout!(cc::CairoContext, layout::TypesetLayout; font::String="serif")
     for glyph in layout.glyphs
         weight = glyph.bold ? Cairo.FONT_WEIGHT_BOLD : Cairo.FONT_WEIGHT_NORMAL
         select_font_face(cc, font, glyph.italic ? Cairo.FONT_SLANT_ITALIC : Cairo.FONT_SLANT_NORMAL, weight)

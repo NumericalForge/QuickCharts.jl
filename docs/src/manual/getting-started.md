@@ -11,6 +11,8 @@ QuickPlots builds figures from a small set of plotting primitives:
 Figure sizes are specified in typographic points. The exported `cm` constant is
 provided for convenient centimeter-based sizes.
 
+`Chart` and `ChartGrid` can also be displayed inline in rich Julia frontends such as VS Code and notebook environments.
+
 ## A First Chart
 
 Load the package, prepare data, and create a chart:
@@ -22,11 +24,13 @@ x = collect(0:0.5:6)
 y = sin.(x)
 
 chart = Chart(
-    size = (9cm, 6cm),
+    size = (15cm, 10cm),
     title = "Sine Response",
+    font_size = 10.0,
+    background = :white,
     xlabel = "`x`",
     ylabel = "`sin(x)`",
-    legend = :bottom_right,
+    legend = :top_right,
 )
 ```
 
@@ -35,29 +39,30 @@ series out of the legend.
 
 ```@example getting_started
 add_line(chart, x, y; mark = :circle, label = "`sin(x)`")
-nothing
 ```
 
 Export the figure:
 
 ```@example getting_started
 save(chart, "getting-started.svg")
-nothing
 ```
+
+![](getting-started.svg)
 
 QuickPlots renders to `.pdf`, `.png`, `.svg`, and `.ps`.
 
 ## Text and Math
 
 Titles, labels, legends, series tags, and annotations can include inline math.
-Math spans can be delimited with backticks, such as `` `u_x(t)` ``, or with
-escaped dollar signs in normal Julia strings, such as `"\$sigma_n\$"`.
+Math spans can be delimited with backticks, such as ``"`u_x(t)`"``, or with
+escaped dollar signs in normal Julia strings, such as `"\$sigma_n\$"` or `"\$σ_n\$"`.
 Backticks are preferred because they do not need escaping.
 
 ```@example getting_started
 math_chart = Chart(
     size = (9cm, 6cm),
     title = "Response `u_x(t)`",
+    background = :white,
     xlabel = "`t`",
     ylabel = "`u_x`",
     legend = :top_right,
@@ -65,7 +70,6 @@ math_chart = Chart(
 
 add_line(math_chart, x, exp.(-0.2 .* x) .* sin.(x); label = "`e^(-0.2t) sin(t)`")
 save(math_chart, "getting-started-math.svg")
-nothing
 ```
 
 The math syntax is Typst-like and supports common expression features,
@@ -83,6 +87,7 @@ Colors can be provided as named symbols, RGB/RGBA tuples, or `Color` values:
 color_chart = Chart(
     size = (9cm, 6cm),
     title = "Styled Series",
+    background = :white,
     xlabel = "`x`",
     ylabel = "`y`",
     legend = :bottom_left,

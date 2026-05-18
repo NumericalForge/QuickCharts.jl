@@ -11,12 +11,12 @@ wm, hm = QuickPlots.getsize("Load `P` at \$x\$", 8.0)
 @test hm > 0
 
 math_nodes = QuickPlots.parse_typeset("`xAh`")
-@test [n.text for n in math_nodes] == string.([Char(0x1D465), Char(0x1D434), Char(0x210E)])
-@test all(!n.italic for n in math_nodes)
+@test [n.text for n in math_nodes] == ["x", "A", "h"]
+@test all(n.italic for n in math_nodes)
 
 greek_nodes = QuickPlots.parse_typeset("`alpha Gamma varepsilon times partial`")
-@test [n.text for n in greek_nodes] == ["𝛼", "𝛤", "𝜖", "×", "∂"]
-@test all(!n.italic for n in greek_nodes)
+@test [n.text for n in greek_nodes] == ["α", "Γ", "ε", "×", "∂"]
+@test [n.italic for n in greek_nodes] == [true, true, true, false, false]
 
 chart = Chart(
     title="Axial `sigma_n`",

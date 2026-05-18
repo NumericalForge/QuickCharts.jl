@@ -1,7 +1,7 @@
 # This file is part of the QuickPlots.jl package. It is licensed under the MIT License.
 
 """
-    ChartGrid(; title="", size=(420,320), font="NewComputerModern", font_size=10.0,
+    ChartGrid(; title="", size=(420,320), font="serif", font_size=10.0,
                 background=nothing,
                 column_headers=String[], row_headers=String[],
                 outerpad=0.0, hgap=8.0, vgap=8.0)
@@ -51,7 +51,7 @@ mutable struct ChartGrid <: Figure
         title::AbstractString="",
         size::Tuple{<:Real,<:Real}=(420, 320),
         font::AbstractString="NewComputerModern",
-        font_size::Real=10.0,
+        font_size::Real=12.0,
         background=nothing,
         column_headers::Vector{<:AbstractString}=String[],
         row_headers::Vector{<:AbstractString}=String[],

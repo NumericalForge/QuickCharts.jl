@@ -21,7 +21,7 @@ const _legend_locations = [
 
 
 """
-    Legend(; location=:top_right, font="NewComputerModern", font_size=7.0,
+    Legend(; location=:top_right, font="serif", font_size=7.0,
              background=nothing, ncols=1)
 
 Configure a chart legend.
@@ -53,7 +53,7 @@ mutable struct Legend<:FigureComponent
 
     function Legend(;
         location::Symbol = :top_right,
-        font::String = "NewComputerModern",
+        font::String = "serif",
         font_size::Float64 = 7.0,
         background=nothing,
         ncols::Int = 1,

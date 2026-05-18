@@ -5,15 +5,15 @@ const _resolved_font_family_cache = Dict{String, String}()
 
 # Ordered fallback candidates for font-family resolution.
 const _font_fallback_candidates = [
-    # "NewComputerModern Regular",
-    "NewComputerModernMath",
+    "NewComputerModern",
+    "NewComputerModern Regular",
     "Times New Roman",
-    "Cambria",
-    "Palatino Linotype",
-    "Georgia",
     "DejaVu Serif",
     "Liberation Serif",
     "Noto Serif",
+    "Cambria",
+    "Palatino Linotype",
+    "Georgia",
     "serif",
     "sans-serif",
 ]
@@ -44,8 +44,6 @@ function resolve_font_family(name::AbstractString)
     family = something(family, "serif")
     _resolved_font_family_cache[key] = family
 
-    @show family
-
     return family
 end
 
@@ -56,7 +54,7 @@ function _current_font_family(cc::CairoContext)
     font_face = ccall((:cairo_get_font_face, Cairo.libcairo), Ptr{Cvoid}, (Ptr{Cvoid},), cc.ptr)
     font_family = ccall((:cairo_toy_font_face_get_family, Cairo.libcairo), Cstring, (Ptr{Cvoid},), font_face)
     family = unsafe_string(font_family)
-    return isempty(family) ? resolve_font_family("NewComputerModern") : family
+    return isempty(family) ? resolve_font_family("serif") : family
 end
 
 function _text_anchor_shift(layout::TypesetLayout, halign::AbstractString, valign::AbstractString)
@@ -88,7 +86,7 @@ end
 function getsize(str::AbstractString, fontsize::Float64)
     surf = CairoImageSurface(4, 4, Cairo.FORMAT_ARGB32)
     cc = CairoContext(surf)
-    select_font_face(cc, resolve_font_family("NewComputerModern"), Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+    select_font_face(cc, resolve_font_family("serif"), Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
     set_font_size(cc, fontsize)
     return getsize(cc, str, fontsize)
 end
