@@ -176,6 +176,13 @@ const _other_colors_dict = Dict(
 )
 
 const _colors_dict = merge(_series_colors_dict, _browser_colors_dict, _other_colors_dict)
+const _color_aliases_dict = let aliases = Dict{Symbol,Symbol}()
+    for key in keys(_colors_dict)
+        alias = Symbol(replace(String(key), "_" => ""))
+        haskey(_colors_dict, alias) || get!(aliases, alias, key)
+    end
+    aliases
+end
 const _colors_list = collect(keys(_colors_dict))
 
 
@@ -216,13 +223,18 @@ struct Color
     end
 
     function Color(t::Tuple)
-        a::Float64 = length(t)==4 ? t[4] : 1.0
-        return Color(t[1], t[2], t[3], a)
+        a::Float64 = length(t)==4 ? Float64(t[4]) : 1.0
+        if all(x -> x isa Integer, t[1:3])
+            return Color(t[1], t[2], t[3], a)
+        else
+            return Color(Float64(t[1]), Float64(t[2]), Float64(t[3]), a)
+        end
     end
 
     function Color(s::Symbol)
-        haskey(_colors_dict, s) || throw(ArgumentError("Color: unknown color symbol $(repr(s))"))
-        return Color(_colors_dict[s])
+        key = haskey(_colors_dict, s) ? s : get(_color_aliases_dict, s, nothing)
+        key === nothing && throw(ArgumentError("Color: unknown color symbol $(repr(s))"))
+        return Color(_colors_dict[key])
     end
 
 end
@@ -305,9 +317,11 @@ end
 
 Represent a scalar-to-color lookup table.
 
-`stops` are normalized scalar positions and `colors` are RGB tuples of equal
-length. A `Colormap` is callable: `cmap(x)` returns an interpolated RGB tuple,
-clamped to the first or last color outside the stop range.
+`stops` are scalar positions and `colors` may be named color symbols, RGB/RGBA
+tuples, `Color` values, or a mixture of those forms. Colors are normalized and
+stored internally as RGB tuples. A `Colormap` is callable: `cmap(x)` returns an
+interpolated RGB tuple, clamped to the first or last color outside the stop
+range.
 
 The named constructor loads one of QuickCharts' built-in maps. `limits=[lo, hi]`
 clips the stop range before use, and `rev=true` reverses the map.
@@ -318,6 +332,8 @@ struct Colormap
 
     function Colormap(stops, colors)
         @assert length(stops)==length(colors)
+        stops = Float64[stop for stop in stops]
+        colors = Tuple[rgb(resolve_color(color)) for color in colors]
         return new(stops, colors)
     end
 end

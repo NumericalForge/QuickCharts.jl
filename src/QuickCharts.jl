@@ -23,5 +23,10 @@ include("include.jl")
 export cm, Color, Colormap, Chart, ChartGrid, DataSeries, Legend, Annotation
 export add_series, add_line, add_scatter, add_bar, add_annotation, add_chart
 export lighten, darken, gray, render, save
+export Figure, FigureComponent, Frame, TextBox, RenderContext, Canvas, Axis
+export configure!, draw!, draw_background!, draw_contents!
+export reset_matrix!, set_local_matrix!, draw_text, getsize, get_font, draw_mark
+export resolve_color, rgb, rgba, compute_auto_limits
+export data2user, user2data, _draw_figure_background!, _draw_text_box!
 
 end
