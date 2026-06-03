@@ -26,5 +26,17 @@ using QuickCharts
     @test interp isa Tuple
     @test all(isapprox.(interp, (0.75, 0.625, 0.875)))
 
+    viridis = Colormap(:viridis)
+    @test viridis.stops == [x for x in 0.0:0.05:1.0]
+    @test viridis.colors[1] == (0.267, 0.005, 0.329)
+    @test viridis.colors[end] == (0.993, 0.906, 0.144)
+    @test all(isapprox.(viridis(0.125), (0.278, 0.173, 0.480)))
+
+    magma = Colormap(:magma)
+    @test magma.stops == [x for x in 0.0:0.05:1.0]
+    @test magma.colors[1] == (0.001, 0.000, 0.014)
+    @test magma.colors[end] == (0.987, 0.991, 0.750)
+    @test all(isapprox.(magma(0.125), (0.113, 0.0615, 0.273)))
+
     @test_throws AssertionError Colormap([0.0], [:red, :blue])
 end

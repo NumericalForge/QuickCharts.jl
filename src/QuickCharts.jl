@@ -8,6 +8,7 @@ math-aware text rendering.
 module QuickCharts
 
 using Cairo
+using FFMPEG
 using LinearAlgebra
 using Printf
 import FreeTypeAbstraction
@@ -21,9 +22,10 @@ Base.showerror(io::IO, e::QuickChartsException) = printstyled(io, "QuickChartsEx
 include("include.jl")
 
 export cm, Color, Colormap, Chart, ChartGrid, DataSeries, Legend, Annotation
-export add_series, add_line, add_scatter, add_bar, add_annotation, add_chart
+export add_series, add_line, add_scatter, add_bar, add_annotation, add_chart, add_frame
 export lighten, darken, gray, render, save
 export Figure, FigureComponent, Frame, TextBox, RenderContext, Canvas, Axis
+export VideoBuilder
 export configure!, draw!, draw_background!, draw_contents!
 export reset_matrix!, set_local_matrix!, draw_text, getsize, get_font, draw_mark
 export resolve_color, rgb, rgba, compute_auto_limits

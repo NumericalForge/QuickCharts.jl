@@ -176,6 +176,7 @@ const _other_colors_dict = Dict(
 )
 
 const _colors_dict = merge(_series_colors_dict, _browser_colors_dict, _other_colors_dict)
+
 const _color_aliases_dict = let aliases = Dict{Symbol,Symbol}()
     for key in keys(_colors_dict)
         alias = Symbol(replace(String(key), "_" => ""))
@@ -183,7 +184,77 @@ const _color_aliases_dict = let aliases = Dict{Symbol,Symbol}()
     end
     aliases
 end
+
+const _accepted_color_symbols = let symbols = Symbol[
+    collect(keys(_colors_dict))...,
+    collect(keys(_color_aliases_dict))...,
+]
+    unique!(symbols)
+    sort!(symbols; by=String)
+end
+
 const _colors_list = collect(keys(_colors_dict))
+
+
+"""
+    _damerau_levenshtein(a::AbstractString, b::AbstractString)
+
+Return the Damerau-Levenshtein edit distance between `a` and `b`.
+
+This is the minimum number of single-character edits needed to transform one
+string into the other, where the allowed edits are insertion, deletion,
+substitution, and transposition of two adjacent characters. In this file it is
+used to suggest the closest valid color symbol for misspelled names such as
+`:ligthblue`.
+"""
+function _damerau_levenshtein(a::AbstractString, b::AbstractString)
+    da = collect(a)
+    db = collect(b)
+    m = length(da)
+    n = length(db)
+    d = Matrix{Int}(undef, m + 1, n + 1)
+
+    for i in 0:m
+        d[i + 1, 1] = i
+    end
+    for j in 0:n
+        d[1, j + 1] = j
+    end
+
+    for i in 1:m
+        for j in 1:n
+            cost = da[i] == db[j] ? 0 : 1
+            d[i + 1, j + 1] = min(
+                d[i, j + 1] + 1,
+                d[i + 1, j] + 1,
+                d[i, j] + cost,
+            )
+
+            if i > 1 && j > 1 && da[i] == db[j - 1] && da[i - 1] == db[j]
+                d[i + 1, j + 1] = min(d[i + 1, j + 1], d[i - 1, j - 1] + 1)
+            end
+        end
+    end
+
+    return d[m + 1, n + 1]
+end
+
+
+function _closest_color_symbol(s::Symbol)
+    best_symbol = nothing
+    best_distance = typemax(Int)
+    s_str = String(s)
+
+    for candidate in _accepted_color_symbols
+        distance = _damerau_levenshtein(s_str, String(candidate))
+        if distance < best_distance
+            best_distance = distance
+            best_symbol = candidate
+        end
+    end
+
+    return best_distance <= 2 ? best_symbol : nothing
+end
 
 
 """
@@ -233,7 +304,12 @@ struct Color
 
     function Color(s::Symbol)
         key = haskey(_colors_dict, s) ? s : get(_color_aliases_dict, s, nothing)
-        key === nothing && throw(ArgumentError("Color: unknown color symbol $(repr(s))"))
+        if key === nothing
+            suggestion = _closest_color_symbol(s)
+            message = "Color: unknown color symbol $(repr(s))"
+            suggestion === nothing || (message *= ". Did you mean $(repr(suggestion))?")
+            throw(ArgumentError(message))
+        end
         return Color(_colors_dict[key])
     end
 
@@ -273,42 +349,97 @@ function grayscale(c::Color)
 end
 
 
+function _rgb_to_hsl(c::Color)
+    max_channel = max(c.r, c.g, c.b)
+    min_channel = min(c.r, c.g, c.b)
+    lightness = 0.5 * (max_channel + min_channel)
+
+    if max_channel == min_channel
+        return (0.0, 0.0, lightness)
+    end
+
+    delta = max_channel - min_channel
+    saturation = lightness <= 0.5 ? delta / (max_channel + min_channel) : delta / (2.0 - max_channel - min_channel)
+
+    hue = if max_channel == c.r
+        (c.g - c.b) / delta + (c.g < c.b ? 6.0 : 0.0)
+    elseif max_channel == c.g
+        (c.b - c.r) / delta + 2.0
+    else
+        (c.r - c.g) / delta + 4.0
+    end / 6.0
+
+    return (hue, saturation, lightness)
+end
+
+
+function _hue_to_rgb(p::Float64, q::Float64, t::Float64)
+    t < 0.0 && (t += 1.0)
+    t > 1.0 && (t -= 1.0)
+
+    if t < 1.0 / 6.0
+        return p + (q - p) * 6.0 * t
+    elseif t < 1.0 / 2.0
+        return q
+    elseif t < 2.0 / 3.0
+        return p + (q - p) * (2.0 / 3.0 - t) * 6.0
+    else
+        return p
+    end
+end
+
+
+function _hsl_to_color(h::Float64, s::Float64, l::Float64, a::Float64)
+    if s == 0.0
+        return Color(l, l, l, a)
+    end
+
+    q = l < 0.5 ? l * (1.0 + s) : l + s - l * s
+    p = 2.0 * l - q
+
+    return Color(
+        _hue_to_rgb(p, q, h + 1.0 / 3.0),
+        _hue_to_rgb(p, q, h),
+        _hue_to_rgb(p, q, h - 1.0 / 3.0),
+        a
+    )
+end
+
+
 """
     lighten(c::Color, ratio::Float64)
+    lighten(c::Symbol, ratio::Float64)
 
-Return a lighter copy of `c` by linearly mixing its RGB channels toward white.
+Return a lighter copy of `c` by increasing its HSL lightness.
 
 `ratio` must be in `[0, 1]`; `0` returns the original color and `1` returns
 white with the original alpha channel.
 """
 function lighten(c::Color, ratio::Float64)
     @assert 0.0 ≤ ratio ≤ 1.0 "Ratio must be between 0 and 1"
-    return Color(
-        c.r + (1.0 - c.r) * ratio,
-        c.g + (1.0 - c.g) * ratio,
-        c.b + (1.0 - c.b) * ratio,
-        c.a
-    )
+    hue, saturation, lightness = _rgb_to_hsl(c)
+    return _hsl_to_color(hue, saturation, lightness + (1.0 - lightness) * ratio, c.a)
 end
+
+lighten(c::Symbol, ratio::Float64) = lighten(Color(c), ratio)
 
 
 """
     darken(c::Color, ratio::Float64)
+    darken(c::Symbol, ratio::Float64)
 
-Return a darker copy of `c` by linearly mixing its RGB channels toward black.
+Return a darker copy of `c` by decreasing its HSL lightness.
 
 `ratio` must be in `[0, 1]`; `0` returns the original color and `1` returns
 black with the original alpha channel.
 """
 function darken(c::Color, ratio::Float64)
     @assert 0.0 ≤ ratio ≤ 1.0 "Ratio must be between 0 and 1"
-    return Color(
-        c.r * (1.0 - ratio),
-        c.g * (1.0 - ratio),
-        c.b * (1.0 - ratio),
-        c.a
-    )
+    hue, saturation, lightness = _rgb_to_hsl(c)
+    return _hsl_to_color(hue, saturation, lightness * (1.0 - ratio), c.a)
 end
+
+darken(c::Symbol, ratio::Float64) = darken(Color(c), ratio)
 
 
 """
@@ -421,6 +552,14 @@ const _colormaps_dict = Dict(
     :inferno => Colormap(
         [0.000, 0.050, 0.100, 0.150, 0.200, 0.250, 0.300, 0.350, 0.400, 0.450, 0.500, 0.550, 0.600, 0.650, 0.700, 0.750, 0.800, 0.850, 0.900, 0.950, 1.000, ],
         [(0.001, 0.000, 0.014), (0.029, 0.022, 0.115), (0.093, 0.046, 0.234), (0.170, 0.042, 0.341), (0.258, 0.039, 0.406), (0.342, 0.062, 0.429), (0.416, 0.090, 0.433), (0.497, 0.119, 0.424), (0.578, 0.148, 0.404), (0.658, 0.179, 0.373), (0.736, 0.216, 0.330), (0.802, 0.259, 0.283), (0.865, 0.317, 0.226), (0.916, 0.387, 0.165), (0.952, 0.462, 0.105), (0.977, 0.551, 0.039), (0.988, 0.645, 0.040), (0.983, 0.744, 0.138), (0.964, 0.844, 0.273), (0.946, 0.931, 0.442), (0.988, 0.998, 0.645), ]
+    ),
+    :viridis => Colormap(
+        [0.000, 0.050, 0.100, 0.150, 0.200, 0.250, 0.300, 0.350, 0.400, 0.450, 0.500, 0.550, 0.600, 0.650, 0.700, 0.750, 0.800, 0.850, 0.900, 0.950, 1.000, ],
+        [(0.267, 0.005, 0.329), (0.280, 0.073, 0.397), (0.283, 0.141, 0.458), (0.273, 0.205, 0.502), (0.254, 0.265, 0.530), (0.230, 0.322, 0.546), (0.207, 0.372, 0.553), (0.184, 0.422, 0.557), (0.164, 0.471, 0.558), (0.145, 0.519, 0.557), (0.128, 0.567, 0.551), (0.119, 0.611, 0.539), (0.135, 0.659, 0.518), (0.186, 0.705, 0.485), (0.267, 0.749, 0.441), (0.369, 0.789, 0.383), (0.478, 0.821, 0.318), (0.606, 0.851, 0.237), (0.741, 0.873, 0.150), (0.876, 0.891, 0.095), (0.993, 0.906, 0.144), ]
+    ),
+    :magma => Colormap(
+        [0.000, 0.050, 0.100, 0.150, 0.200, 0.250, 0.300, 0.350, 0.400, 0.450, 0.500, 0.550, 0.600, 0.650, 0.700, 0.750, 0.800, 0.850, 0.900, 0.950, 1.000, ],
+        [(0.001, 0.000, 0.014), (0.025, 0.021, 0.101), (0.079, 0.054, 0.212), (0.147, 0.069, 0.334), (0.232, 0.060, 0.438), (0.317, 0.072, 0.485), (0.390, 0.100, 0.502), (0.470, 0.132, 0.508), (0.550, 0.161, 0.506), (0.633, 0.188, 0.495), (0.716, 0.215, 0.475), (0.792, 0.244, 0.448), (0.869, 0.288, 0.409), (0.930, 0.353, 0.373), (0.968, 0.440, 0.360), (0.987, 0.536, 0.382), (0.995, 0.624, 0.427), (0.997, 0.719, 0.494), (0.996, 0.813, 0.573), (0.991, 0.906, 0.661), (0.987, 0.991, 0.750), ]
     ),
     :spectral => Colormap(
         [0.000, 0.050, 0.100, 0.150, 0.200, 0.250, 0.300, 0.350, 0.400, 0.450, 0.500, 0.550, 0.600, 0.650, 0.700, 0.750, 0.800, 0.850, 0.900, 0.950, 1.000, ],
