@@ -7,12 +7,8 @@ Pkg.instantiate()
 using Documenter
 using QuickCharts
 
-repo_slug = get(ENV, "GITHUB_REPOSITORY", "")
-remote_repo = nothing
-if !isempty(repo_slug)
-    owner, repo = split(repo_slug, "/", limit = 2)
-    remote_repo = Documenter.Remotes.GitHub(owner, repo)
-end
+repo_slug = get(ENV, "GITHUB_REPOSITORY", "NumericalForge/QuickCharts.jl")
+repo_url = "https://github.com/$(repo_slug)"
 
 makedocs(
     root = root,
@@ -25,6 +21,7 @@ makedocs(
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
         collapselevel = 1,
+        repolink = repo_url,
     ),
     pages = [
         "Introduction" => "index.md",
@@ -39,11 +36,9 @@ makedocs(
     ],
 )
 
-if !isempty(repo_slug)
-    deploydocs(
-        devbranch = "main",
-        target = "build",
-        branch = "gh-pages",
-        repo = "github.com/$(repo_slug).git",
-    )
-end
+deploydocs(
+    devbranch = "main",
+    target = "build",
+    branch = "gh-pages",
+    repo = "github.com/$(repo_slug).git",
+)
