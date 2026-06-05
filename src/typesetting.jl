@@ -104,6 +104,7 @@ end
 @inline _next(s::AbstractString, i::Int) = nextind(s, i)
 @inline _isletter(c::Char) = isletter(c)
 @inline _isdigit(c::Char) = isdigit(c)
+@inline _is_number_start(s::AbstractString, i::Int) = _isdigit(s[i]) || (s[i] == '.' && _next(s, i) <= lastindex(s) && _isdigit(s[_next(s, i)]))
 
 @inline function _skip_spaces(s::AbstractString, i::Int)
     while i <= lastindex(s) && isspace(s[i])
@@ -124,6 +125,44 @@ function _read_identifier(s::AbstractString, i::Int)
     while j <= lastindex(s) && (_isletter(s[j]) || _isdigit(s[j]))
         j = _next(s, j)
     end
+    return s[i:prevind(s, j)], j
+end
+
+function _read_number(s::AbstractString, i::Int)
+    _is_number_start(s, i) || return nothing, i
+
+    j = i
+    if s[j] == '.'
+        j = _next(s, j)
+        while j <= lastindex(s) && _isdigit(s[j])
+            j = _next(s, j)
+        end
+    else
+        while j <= lastindex(s) && _isdigit(s[j])
+            j = _next(s, j)
+        end
+        if j <= lastindex(s) && s[j] == '.'
+            j = _next(s, j)
+            while j <= lastindex(s) && _isdigit(s[j])
+                j = _next(s, j)
+            end
+        end
+    end
+
+    if j <= lastindex(s) && (s[j] == 'e' || s[j] == 'E')
+        k = _next(s, j)
+        if k <= lastindex(s) && (s[k] == '+' || s[k] == '-')
+            k = _next(s, k)
+        end
+        exp_start = k
+        while k <= lastindex(s) && _isdigit(s[k])
+            k = _next(s, k)
+        end
+        if exp_start < k
+            j = k
+        end
+    end
+
     return s[i:prevind(s, j)], j
 end
 
@@ -156,6 +195,9 @@ function _parse_script_arg(s::AbstractString, i::Int)
         end
         nodes = _identifier_nodes(name)
         return length(nodes) == 1 ? nodes[1] : TSGroup(nodes), j
+    elseif _is_number_start(s, i)
+        number, j = _read_number(s, i)
+        return TSAtom(number, false, false), j
     else
         return _atom_from_char(c, in_math=true), _next(s, i)
     end
@@ -345,6 +387,9 @@ function _parse_math_seq(s::AbstractString, i::Int; stopchars::Set{Char}=Set{Cha
 
         if isspace(c)
             i = _next(s, i)
+        elseif _is_number_start(s, i)
+            number, i = _read_number(s, i)
+            push!(nodes, TSAtom(number, false, false))
         elseif _isletter(c)
             name, i = _read_identifier(s, i)
             if name == "frac"
@@ -566,6 +611,7 @@ function _node_width(cc::CairoContext, node::TypesetNode, font::String, fontsize
             prev_node = i > 1 ? items[i-1] : nothing
             next_node = i < length(items) ? items[i+1] : nothing
             pre, post = _operator_spacing(item, prev_node, next_node, fontsize)
+            pre += _implicit_atom_spacing(prev_node, item, fontsize)
             left_pad = prev_node === nothing ? 0.0 : _node_left_pad(cc, font, item, fontsize)
             width += left_pad + pre + _node_width(cc, item, font, fontsize) + post
         end
@@ -636,6 +682,15 @@ end
 
 @inline _is_operator_atom(node::TypesetNode) = node isa TSAtom && ((node::TSAtom).text in _typeset_binary_ops)
 @inline _is_opening_delim_atom(node::TypesetNode) = node isa TSAtom && ((node::TSAtom).text in ("(", "[", "{"))
+@inline _is_function_atom(node::TypesetNode) = node isa TSAtom && ((node::TSAtom).text in _typeset_functions)
+
+@inline function _is_number_atom(node::TypesetNode)
+    node isa TSAtom || return false
+    text = (node::TSAtom).text
+    isempty(text) && return false
+    (_isdigit(text[firstindex(text)]) || text[firstindex(text)] == '.') || return false
+    return tryparse(Float64, text) !== nothing
+end
 
 @inline function _script_sub_x_adjust(base::TypesetNode, fontsize::Float64, has_sub::Bool)
     has_sub || return 0.0
@@ -668,6 +723,11 @@ function _operator_spacing(node::TypesetNode, prev_node::Union{Nothing,TypesetNo
 
     s = 0.16 * fontsize
     return s, s
+end
+
+function _implicit_atom_spacing(prev_node::Union{Nothing,TypesetNode}, node::TypesetNode, fontsize::Float64)
+    prev_node === nothing && return 0.0
+    return _is_number_atom(prev_node) && _is_function_atom(node) ? 0.08 * fontsize : 0.0
 end
 
 function _layout_node!(cc::CairoContext, node::TypesetNode, font::String, glyphs::Vector{GlyphElem}, rules::Vector{RuleElem},
@@ -851,6 +911,7 @@ function _layout_nodes!(cc::CairoContext, nodes::Vector{TypesetNode}, font::Stri
         prev_node = i > 1 ? nodes[i-1] : nothing
         next_node = i < length(nodes) ? nodes[i+1] : nothing
         pre, post = _operator_spacing(node, prev_node, next_node, fontsize)
+        pre += _implicit_atom_spacing(prev_node, node, fontsize)
         current_x += pre
         if prev_node !== nothing
             current_x += _node_left_pad(cc, font, node, fontsize)

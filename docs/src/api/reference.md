@@ -26,6 +26,8 @@ Legend
 Annotation
 Color
 Colormap
+VideoBuilder
+Axis
 ```
 
 ## Series Construction
@@ -42,6 +44,7 @@ add_bar
 ```@docs
 add_annotation
 add_chart
+add_frame
 render
 save
 ```

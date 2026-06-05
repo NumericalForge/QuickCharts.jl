@@ -154,9 +154,11 @@ The second version uses `kind = :line`.
 - `mark_stroke_color::Union{Symbol,Color,Tuple} = :auto` : Mark edge color (`:auto` follows `color`).
 - `label::AbstractString = ""` : Legend label.
 - `tag::AbstractString = ""` : On-curve annotation text.
-- `tag_location::Symbol = :top` : Relative location of tag (`:top`, `:bottom`, `:left`, `:right`).
-- `tag_position::Float64 = 0.5` : Position along the curve in [0,1].
-- `tag_alignment::Symbol = :horizontal` : Tag orientation (`:horizontal`, `:vertical`, `:parallel`).
+- `tag_anchor::Symbol = :top` : Anchor side of the tag (`:top`, `:top_right`, `:right`, `:bottom_right`, `:bottom`, `:bottom_left`, `:left`, `:top_left`).
+- `tag_pos::Float64 = 0.5` : Position along the curve in [0,1].
+- `tag_orientation::Symbol = :horizontal` : Tag orientation (`:horizontal`, `:vertical`, `:parallel`).
+- `tag_padding::Union{Nothing,Real} = nothing` : Padding between the curve and tag in points. `nothing` uses the default based on font size.
+- `tag_font_size::Union{Nothing,Real} = nothing` : Tag font size in points. `nothing` uses `0.8 * chart.xaxis.font_size`.
 - `bar_width::Float64 = 0.0` : Bar width in x-data units (`0` enables auto width).
 - `bar_base::Float64 = 0.0` : Bar baseline in y-data units.
 - `order::Int = 0` : Z-order. If `0`, an incremental order is assigned.
@@ -179,8 +181,10 @@ function add_series(chart::Chart, kind::Symbol, X::AbstractArray, Y::AbstractArr
     mark=:none, mark_size=2.5,
     mark_color::Union{Symbol,Color,Tuple}=:white,
     mark_stroke_color::Union{Symbol,Color,Tuple}=:auto,
-    label="", tag="", tag_location=:top, tag_position=0.5,
-    tag_alignment=:horizontal,
+    label="", tag="", tag_anchor=:top, tag_pos=0.5,
+    tag_orientation=:horizontal,
+    tag_padding::Union{Nothing,Real}=nothing,
+    tag_font_size::Union{Nothing,Real}=nothing,
     bar_width=0.0,
     bar_base=0.0,
     order=0
@@ -188,14 +192,16 @@ function add_series(chart::Chart, kind::Symbol, X::AbstractArray, Y::AbstractArr
 
     line_width > 0 || throw(ArgumentError("Line width must be positive"))
     mark_size > 0 || throw(ArgumentError("Mark size must be positive"))
-    0 <= tag_position <= 1 || throw(ArgumentError("Tag position must be in [0,1]"))
+    0 <= tag_pos <= 1 || throw(ArgumentError("Tag position along the curve must be in [0,1]"))
     order >= 0 || throw(ArgumentError("Order must be non-negative"))
     bar_width >= 0 || throw(ArgumentError("Bar width must be non-negative"))
     kind in (:line, :scatter, :bar) || throw(ArgumentError("Invalid series kind: $kind. Use :line, :scatter, or :bar"))
     length(X) == length(Y) || throw(ArgumentError("X and Y must have the same length"))
     mark in _mark_list || throw(ArgumentError("Invalid mark: $mark. Use one of $_mark_list"))
-    tag_location in (:top, :bottom, :left, :right) || throw(ArgumentError("Invalid tag location: $tag_location. Use :top, :bottom, :left, or :right"))
-    tag_alignment in (:horizontal, :vertical, :parallel) || throw(ArgumentError("Invalid tag alignment: $tag_alignment. Use :horizontal, :vertical, or :parallel"))
+    tag_anchor in _tag_anchor_list || throw(ArgumentError("Invalid tag anchor: $tag_anchor. Use one of $_tag_anchor_list"))
+    tag_orientation in (:horizontal, :vertical, :parallel) || throw(ArgumentError("Invalid tag orientation: $tag_orientation. Use :horizontal, :vertical, or :parallel"))
+    tag_padding === nothing || tag_padding >= 0 || throw(ArgumentError("Tag padding must be non-negative"))
+    tag_font_size === nothing || tag_font_size > 0 || throw(ArgumentError("Tag font size must be positive"))
 
     series = DataSeries(kind, X, Y;
         line_style=line_style, dash=dash,
@@ -203,8 +209,9 @@ function add_series(chart::Chart, kind::Symbol, X::AbstractArray, Y::AbstractArr
         line_width=line_width,
         mark=mark, mark_size=mark_size,
         mark_color=mark_color, mark_stroke_color=mark_stroke_color,
-        label=label, tag=tag, tag_location=tag_location, tag_position=tag_position,
-        tag_alignment=tag_alignment,
+        label=label, tag=tag, tag_anchor=tag_anchor, tag_pos=tag_pos,
+        tag_orientation=tag_orientation, tag_padding=tag_padding,
+        tag_font_size=tag_font_size,
         bar_width=bar_width, bar_base=bar_base,
         order=order
     )
@@ -253,9 +260,11 @@ Add a line series to `chart`.
 - `mark_stroke_color::Union{Symbol,Color,Tuple} = :auto`: Mark edge color (`:auto` follows `color`).
 - `label::AbstractString = ""`: Legend label.
 - `tag::AbstractString = ""`: On-curve annotation text.
-- `tag_location::Symbol = :top`: Relative location of tag (`:top`, `:bottom`, `:left`, `:right`).
-- `tag_position::Float64 = 0.5`: Position along the curve in [0,1].
-- `tag_alignment::Symbol = :horizontal`: Tag orientation (`:horizontal`, `:vertical`, `:parallel`).
+- `tag_anchor::Symbol = :top`: Anchor side of the tag (`:top`, `:top_right`, `:right`, `:bottom_right`, `:bottom`, `:bottom_left`, `:left`, `:top_left`).
+- `tag_pos::Float64 = 0.5`: Position along the curve in [0,1].
+- `tag_orientation::Symbol = :horizontal`: Tag orientation (`:horizontal`, `:vertical`, `:parallel`).
+- `tag_padding::Union{Nothing,Real} = nothing`: Padding between the curve and tag in points. `nothing` uses the default based on font size.
+- `tag_font_size::Union{Nothing,Real} = nothing`: Tag font size in points. `nothing` uses `0.8 * chart.xaxis.font_size`.
 - `bar_width::Float64 = 0.0`: Bar width in x-data units (`0` enables auto width).
 - `bar_base::Float64 = 0.0`: Bar baseline in y-data units.
 - `order::Int = 0`: Z-order. If `0`, an incremental order is assigned.
@@ -307,6 +316,119 @@ This is a convenience wrapper around [`add_series`](@ref) with
 function add_bar(chart::Chart, X::AbstractArray, Y::AbstractArray; kwargs...)
     defaults = (line_style=:none, mark=:none)
     return add_series(chart, :bar, X, Y; merge(defaults, kwargs)...)
+end
+
+
+function _tag_anchor_alignment(anchor::Symbol)
+    anchor == :top && return "center", "top"
+    anchor == :top_right && return "right", "top"
+    anchor == :right && return "right", "center"
+    anchor == :bottom_right && return "right", "bottom"
+    anchor == :bottom && return "center", "bottom"
+    anchor == :bottom_left && return "left", "bottom"
+    anchor == :left && return "left", "center"
+    anchor == :top_left && return "left", "top"
+    throw(ArgumentError("Invalid tag anchor: $anchor"))
+end
+
+
+function _tag_anchor_offset(anchor::Symbol, pad::Float64)
+    anchor == :top && return 0.0, pad
+    anchor == :top_right && return -pad, pad
+    anchor == :right && return -pad, 0.0
+    anchor == :bottom_right && return -pad, -pad
+    anchor == :bottom && return 0.0, -pad
+    anchor == :bottom_left && return pad, -pad
+    anchor == :left && return pad, 0.0
+    anchor == :top_left && return pad, pad
+    throw(ArgumentError("Invalid tag anchor: $anchor"))
+end
+
+
+function _rotate_offset(dx::Float64, dy::Float64, angle::Float64)
+    c = cosd(angle)
+    s = sind(angle)
+    return dx * c + dy * s, -dx * s + dy * c
+end
+
+const _debug_tag_points = Ref(false)
+
+
+function _resolve_tag_layout(anchor::Symbol, orientation::Symbol, tangent_angle::Float64, pad::Float64)
+    ha, va = _tag_anchor_alignment(anchor)
+    dx, dy = _tag_anchor_offset(anchor, pad)
+
+    angle = if orientation == :parallel
+        tangent_angle
+    elseif orientation == :vertical
+        90.0
+    else
+        0.0
+    end
+
+    if angle != 0.0
+        dx, dy = _rotate_offset(dx, dy, angle)
+    end
+
+    return ha, va, dx, dy, angle
+end
+
+
+_tag_vertex_tolerance(total_length::Float64) = max(1.0e-12, sqrt(eps(Float64)) * max(total_length, 1.0))
+
+
+function _segment_tangent_angle(canvas::Canvas, X::AbstractArray, Y::AbstractArray, i::Int)
+    x1, y1 = data2user(canvas, float(X[i]), float(Y[i]))
+    x2, y2 = data2user(canvas, float(X[i + 1]), float(Y[i + 1]))
+    return -atand(y2 - y1, x2 - x1)
+end
+
+
+function _vertex_tangent_angle(canvas::Canvas, X::AbstractArray, Y::AbstractArray, i::Int)
+    xprev, yprev = data2user(canvas, float(X[i - 1]), float(Y[i - 1]))
+    xnext, ynext = data2user(canvas, float(X[i + 1]), float(Y[i + 1]))
+    dx = xnext - xprev
+    dy = ynext - yprev
+
+    if isapprox(dx, 0.0; atol=1.0e-12) && isapprox(dy, 0.0; atol=1.0e-12)
+        return _segment_tangent_angle(canvas, X, Y, i)
+    end
+
+    return -atand(dy, dx)
+end
+
+
+function _resolve_tag_point_and_tangent(canvas::Canvas, X::AbstractArray, Y::AbstractArray, tag_pos::Float64)
+    len = 0.0
+    lengths = Float64[0.0]
+    for i in 2:length(X)
+        len += norm((float(X[i]) - float(X[i - 1]), float(Y[i]) - float(Y[i - 1])))
+        push!(lengths, len)
+    end
+
+    lpos = tag_pos * len
+    tol = _tag_vertex_tolerance(len)
+    vertex = findfirst(value -> abs(value - lpos) <= tol, lengths)
+
+    if vertex !== nothing
+        x, y = data2user(canvas, float(X[vertex]), float(Y[vertex]))
+        tangent_angle = if vertex == 1
+            _segment_tangent_angle(canvas, X, Y, 1)
+        elseif vertex == length(lengths)
+            _segment_tangent_angle(canvas, X, Y, length(lengths) - 1)
+        else
+            _vertex_tangent_angle(canvas, X, Y, vertex)
+        end
+        return x, y, tangent_angle
+    end
+
+    i = clamp(searchsortedlast(lengths, lpos), 1, length(lengths) - 1)
+    t = (lpos - lengths[i]) / (lengths[i + 1] - lengths[i])
+    x = float(X[i]) + t * (float(X[i + 1]) - float(X[i]))
+    y = float(Y[i]) + t * (float(Y[i + 1]) - float(Y[i]))
+    x, y = data2user(canvas, x, y)
+    tangent_angle = _segment_tangent_angle(canvas, X, Y, i)
+    return x, y, tangent_angle
 end
 
 
@@ -745,65 +867,28 @@ function draw!(chart::Chart, ctx::RenderContext, p::DataSeries)
 
     # Draw tag
     if p.tag != ""
-        len = 0.0
-        L = [len] # lengths
-        for i in 2:length(X)
-            len += norm((X[i] - X[i-1], Y[i] - Y[i-1]))
-            push!(L, len)
-        end
-        lpos = p.tag_position * len # length to position
+        x, y, tangent_angle = _resolve_tag_point_and_tangent(chart.canvas, X, Y, p.tag_pos)
 
-        i = findfirst(z -> z > lpos, L)
-        i = min(i, length(L) - 1)
+        pad = something(p.tag_padding, chart.xaxis.font_size * 0.3)
+        tag_font_size = something(p.tag_font_size, chart.xaxis.font_size * 0.8)
+        ha, va, dx, dy, α = _resolve_tag_layout(p.tag_anchor, p.tag_orientation, tangent_angle, pad)
 
-        # location coordinates
-        x = X[i] + (lpos - L[i]) / (L[i+1] - L[i]) * (X[i+1] - X[i])
-        y = Y[i] + (lpos - L[i]) / (L[i+1] - L[i]) * (Y[i+1] - Y[i])
-
-        # location coordinates in user units
-        x, y = data2user(chart.canvas, x, y)
-        x1, y1 = data2user(chart.canvas, X[i], Y[i])
-        x2, y2 = data2user(chart.canvas, X[i+1], Y[i+1])
-        α = -atand(y2 - y1, x2 - x1) # tilt
-
-        # pads
-        pad = chart.xaxis.font_size * 0.3
-
-        dx = pad * abs(sind(α))
-        dy = pad * abs(cosd(α))
-
-        # Default location "top"
-        if p.tag_location == :top
-            va = "bottom"
-            if 0 < α <= 90 || -180 < α <= -90
-                ha = "right"
-                dx, dy = -dx, -dy
-            else
-                ha = "left"
-                dy = -dy
-            end
-        else
-            va = "top"
-            if 0 < α <= 90 || -180 < α <= -90
-                ha = "left"
-            else
-                ha = "right"
-                dx = -dx
-            end
-        end
-
-        if p.tag_alignment == :parallel
-            ha = "center"
-            dx = 0.0
-            dy = p.tag_location == :top ? -pad : 0.0
-        else
-            α = 0.0
-        end
-
-        set_font_size(cairo_ctx, chart.xaxis.font_size * 0.9)
+        set_font_size(cairo_ctx, tag_font_size)
         font = get_font(chart.xaxis.font)
         select_font_face(cairo_ctx, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
         set_source_rgb(cairo_ctx, 0, 0, 0)
+
+        if _debug_tag_points[]
+            # Debug overlay: red marks the sampled on-curve tag position, dark red
+            # marks the final anchor point used to place the text box.
+            set_source_rgb(cairo_ctx, 1.0, 0.0, 0.0)
+            arc(cairo_ctx, x, y, 2.2, 0, 2pi)
+            fill(cairo_ctx)
+            set_source_rgb(cairo_ctx, 0.65, 0.0, 0.0)
+            arc(cairo_ctx, x + dx, y + dy, 2.2, 0, 2pi)
+            fill(cairo_ctx)
+        end
+
         draw_text(cairo_ctx, x + dx, y + dy, p.tag, halign=ha, valign=va, angle=α)
     end
 

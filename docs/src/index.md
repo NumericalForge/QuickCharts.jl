@@ -10,11 +10,12 @@ end
 
 - `Chart` for line, scatter, and bar plots.
 - `ChartGrid` for multi-panel layouts.
-- `Annotation`, `Legend`, `Color`, and math-aware text rendering utilities.
+- `VideoBuilder` for frame-by-frame animation export.
+- `Annotation`, `Legend`, `Color`, `Colormap`, and math-aware text rendering utilities.
 
-The package centers on a small plotting surface: single charts, chart grids, legends, annotations, colors, and math-aware labels.
+The package centers on a small plotting surface: single charts, chart grids, videos, legends, annotations, colors, colormaps, and math-aware labels.
 
-`Chart` and `ChartGrid` also support inline display in rich Julia environments such as VS Code and notebooks. Use `save(...)` when you want persistent output files.
+`Chart` and `ChartGrid` also support inline display in rich Julia environments such as VS Code and notebooks. Use `save(...)` when you want persistent output files such as `.svg`, `.pdf`, `.png`, `.ps`, `.mp4`, or `.avi`.
 
 ## Installation
 

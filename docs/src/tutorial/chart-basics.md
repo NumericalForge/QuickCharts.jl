@@ -55,7 +55,8 @@ save(chart, "tutorial-scatter.svg")
 
 ## Add Tags and Annotations
 
-A series tag follows a data series. 
+A series tag follows a data series. `tag_anchor` specifies which side of the
+tag box is attached to the curve point.
 
 ```@example chart_tutorial
 add_line(
@@ -64,19 +65,26 @@ add_line(
     0.5 .* sin.(2x);
     color = :dark_orange,
     tag = "`0.5 sin(2x)`",
-    tag_position = 0.35,
-    tag_location = :top,
+    tag_pos = 0.54,
+    tag_anchor = :bottom,
+    tag_orientation = :parallel,
+    tag_padding = 1.2,
+    tag_font_size = 10.0,
 )
 ```
 
-An `Annotation` is positioned in normalized
-plot coordinates, where `(0, 0)` is the lower-left of the plot area and `(1, 1)`
-is the upper-right.
+Annotations are positioned in normalized plot coordinates, where `(0, 0)` is
+the lower-left of the plot area and `(1, 1)` is the upper-right. The
+`anchor` keyword selects which side of the annotation box is attached to that
+reference point.
 
 ```@example chart_tutorial
 add_annotation(
     chart,
-    Annotation("Peak region", 0.82, 0.18; alignment = :right, target = [π / 2, 1.0]),
+    "Peak region",
+    [0.75, 0.8];
+    anchor = :right,
+    target = [π / 2, 1.0],
 )
 ```
 

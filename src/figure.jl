@@ -126,6 +126,8 @@ end
 draw_background!(::Figure, ::RenderContext) = nothing
 draw_contents!(::Figure, ::RenderContext) = throw(MethodError(draw_contents!, (Figure, RenderContext)))
 _figure_renderable(::Figure) = false
+_capture_scaling_state(::Figure; bounds_factor::Real=1.0) = nothing
+_apply_scaling_state!(::Figure, state) = nothing
 
 function draw!(figure::Figure, cairo_ctx::CairoContext)
     ctx = RenderContext(cairo_ctx; background=_figure_background(figure), width_scale=1.0)

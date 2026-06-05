@@ -38,5 +38,12 @@ using QuickCharts
     @test magma.colors[end] == (0.987, 0.991, 0.750)
     @test all(isapprox.(magma(0.125), (0.113, 0.0615, 0.273)))
 
+    diverging = QuickCharts.resize(Colormap(:spectral), -1.0, 1.0; diverging=true)
+    diverging_twice = QuickCharts.resize(diverging, -1.0, 1.0; diverging=true)
+    @test all(isfinite, diverging_twice.stops)
+    @test diverging_twice.stops[1] == -1.0
+    @test diverging_twice.stops[end] == 1.0
+    @test all(isapprox.(diverging_twice(0.0), diverging(0.0)))
+
     @test_throws AssertionError Colormap([0.0], [:red, :blue])
 end

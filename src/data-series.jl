@@ -2,6 +2,7 @@
 
 const _line_style_list = [:none, :solid, :dot, :dash, :dashdot]
 const _mark_list = [:none, :circle, :square, :triangle, :utriangle, :cross, :xcross, :diamond, :pentagon, :hexagon, :star, :hatch, :hash]
+const _tag_anchor_list = [:top, :top_right, :right, :bottom_right, :bottom, :bottom_left, :left, :top_left]
 
 
 """
@@ -25,7 +26,7 @@ resolve `color=:auto` against the chart palette.
 - `mark_size`: positive marker size.
 - `mark_color`, `mark_stroke_color`: marker fill and edge colors, or `:auto`.
 - `label`: legend label; an empty label keeps the series out of the legend.
-- `tag`, `tag_location`, `tag_position`, `tag_alignment`: on-series tag text and placement.
+- `tag`, `tag_anchor`, `tag_pos`, `tag_orientation`, `tag_padding`, `tag_font_size`: on-series tag text and placement.
 - `bar_width`, `bar_base`: bar-series width and baseline.
 - `order`: nonnegative draw order; `0` is assigned by `add_series`.
 """
@@ -43,9 +44,11 @@ mutable struct DataSeries
     mark_stroke_color::Union{Symbol,Color}
     label            ::AbstractString
     tag              ::AbstractString
-    tag_location     ::Symbol
-    tag_position     ::Float64
-    tag_alignment    ::Symbol
+    tag_anchor       ::Symbol
+    tag_pos          ::Float64
+    tag_orientation  ::Symbol
+    tag_padding      ::Union{Nothing,Float64}
+    tag_font_size    ::Union{Nothing,Float64}
     bar_width        ::Float64
     bar_base         ::Float64
     order            ::Int
@@ -57,8 +60,10 @@ mutable struct DataSeries
                             dash=Float64[],
                             mark=:none, mark_size=2.5,
                             mark_color=:white, mark_stroke_color=:auto,
-                            label="", tag="", tag_location=:top, tag_position=0.5,
-                            tag_alignment=:horizontal,
+                            label="", tag="", tag_anchor=:top, tag_pos=0.5,
+                            tag_orientation=:horizontal,
+                            tag_padding::Union{Nothing,Real}=nothing,
+                            tag_font_size::Union{Nothing,Real}=nothing,
                             bar_width=0.0,
                             bar_base=0.0,
                             order=0
@@ -67,8 +72,10 @@ mutable struct DataSeries
         length(X) == length(Y) || throw(ArgumentError("Length of X and Y arrays must be equal"))
         line_style in _line_style_list || throw(ArgumentError("Invalid line style: $(repr(line_style))"))
         mark in _mark_list || throw(ArgumentError("Invalid mark shape: $(repr(mark))"))
-        tag_location in [:bottom, :top, :left, :right] || throw(ArgumentError("Invalid tag location: $(repr(tag_location))"))
-        tag_alignment in [:horizontal, :vertical, :parallel] || throw(ArgumentError("Invalid tag alignment: $(repr(tag_alignment))"))
+        tag_anchor in _tag_anchor_list || throw(ArgumentError("Invalid tag anchor: $(repr(tag_anchor))"))
+        tag_orientation in [:horizontal, :vertical, :parallel] || throw(ArgumentError("Invalid tag orientation: $(repr(tag_orientation))"))
+        tag_padding === nothing || tag_padding >= 0 || throw(ArgumentError("Tag padding must be non-negative"))
+        tag_font_size === nothing || tag_font_size > 0 || throw(ArgumentError("Tag font size must be positive"))
         line_width > 0 || throw(ArgumentError("Line width must be greater than zero"))
         mark_size > 0 || throw(ArgumentError("Mark size must be greater than zero"))
         bar_width >= 0 || throw(ArgumentError("Bar width must be non-negative"))
@@ -96,7 +103,9 @@ mutable struct DataSeries
                     line_style, line_width, color,
                     dash,
                     mark, mark_size, mark_color, mark_stroke_color,
-                    label, tag, tag_location, tag_position, tag_alignment,
+                    label, tag, tag_anchor, tag_pos, tag_orientation,
+                    tag_padding === nothing ? nothing : float(tag_padding),
+                    tag_font_size === nothing ? nothing : float(tag_font_size),
                     bar_width, bar_base,
                     order)
     end

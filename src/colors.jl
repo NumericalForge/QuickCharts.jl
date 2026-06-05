@@ -499,7 +499,7 @@ function resize(cmap::Colormap, min, max; diverging=false)  # diverging from zer
     (min>=0 || max<=0) && (diverging=false)
 
     if diverging
-        rmid = 0.5*(rmax-rmin)
+        rmid = 0.5*(rmax+rmin)
 
         stops = []
         for rval in cmap.stops

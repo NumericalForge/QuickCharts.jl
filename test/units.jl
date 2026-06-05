@@ -2,6 +2,9 @@ using Test
 using QuickCharts
 using Cairo: read_from_png, width, height, image_surface_get_data
 
+@test :configure! ∉ names(QuickCharts)
+@test :getsize ∉ names(QuickCharts)
+
 function svg_dimension(svg, attr)
     m = match(Regex(attr * "=\"([0-9.]+)\""), svg)
     m === nothing && error("missing SVG $attr")
