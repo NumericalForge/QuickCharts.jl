@@ -1,8 +1,9 @@
 # ChartGrid Tutorial
 
-`ChartGrid` arranges charts into rows and columns. It is useful for comparing
-related plots while keeping each child chart responsible for its own axes,
-series, and legend.
+`ChartGrid` arranges charts into rows and columns. By default it sizes itself
+from the child figures, using the widest child in each column and the tallest
+child in each row. It is useful for comparing related plots while keeping each
+child chart responsible for its own axes, series, and legend.
 
 ## Build Child Charts
 
@@ -56,12 +57,12 @@ add_bar(bars, 1:4, [1.2, 0.8, 1.6, 1.1]; color = :steel_blue, label = "value")
 
 Use `add_chart(grid, chart, (row, column))` to place each child. Rows and
 columns are one-based, and the grid grows to fit the largest occupied row and
-column.
+column. When `size` is omitted, the final figure dimensions are derived from
+the natural row and column sizes.
 
 ```@example chart_grid_tutorial
 grid = ChartGrid(
     title = "Signal Summary",
-    size = (21cm, 16cm),
     background = :white,
     column_headers = ["Continuous", "Discrete"],
     row_headers = ["Waveforms", "Derived"],
@@ -81,7 +82,8 @@ save(grid, "tutorial-chart-grid.svg")
 
 Child chart backgrounds are ignored while drawing inside a grid. The grid
 background supplies the page fill, while each child keeps its own axes, series,
-legend, and annotations.
+legend, and annotations. Pass `size=(...)` when you want the grid to keep a
+specific overall size and scale its row and column tracks proportionally.
 
 ## Nested Grids
 

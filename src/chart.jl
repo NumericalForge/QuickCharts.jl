@@ -1,8 +1,8 @@
 # This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 """
-    Chart(; 
-        size=(220,150), font="serif", font_size=7.0,
+    Chart(;
+        size=(8cm, 5cm), font="NewComputerModern", font_size=10.0,
         xlimits, ylimits, aspect_ratio=:auto,
         nxticks=7, nyticks=6,
         title="", background=nothing,
@@ -79,9 +79,9 @@ mutable struct Chart <: Figure
     iorder::Int
 
     function Chart(;
-        size=(220, 150),
+        size=(8cm, 5cm),
         font="NewComputerModern",
-        font_size::Real=12.0,
+        font_size::Real=10.0,
         xlimits=Float64[],
         ylimits=Float64[],
         aspect_ratio=:auto,
@@ -522,6 +522,47 @@ function _chart_bar_width(series::DataSeries)
 end
 
 
+function _chart_legend_plots(c::Chart)
+    return [p for p in c.dataseries if p.label != ""]
+end
+
+
+function _legend_measure_context(legend::Legend)
+    surf = CairoImageSurface(4, 4, Cairo.FORMAT_ARGB32)
+    cc = CairoContext(surf)
+    font = get_font(legend.font)
+    select_font_face(cc, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
+    set_font_size(cc, legend.font_size)
+    return cc
+end
+
+
+function _legend_layout(legend::Legend, plots, cairo_ctx::CairoContext)
+    nlabels = length(plots)
+    ncols = legend.ncols
+    nrows = ceil(Int, nlabels / ncols)
+    nlabels == 0 && return zeros(ncols), Float64[], 0.0, 0.0
+
+    col_widths = zeros(ncols)
+    row_heights = zeros(nrows)
+    vertical_pad = legend.row_sep
+
+    for (k, plot) in enumerate(plots)
+        i = ceil(Int, k / ncols)  # row
+        j = k % ncols == 0 ? ncols : k % ncols # column
+        label_width, current_height = getsize(cairo_ctx, plot.label, legend.font_size)
+        item_width = legend.handle_length + 2 * legend.inner_pad + label_width
+        col_widths[j] = max(col_widths[j], item_width)
+        row_heights[i] = max(row_heights[i], current_height)
+    end
+
+    width = sum(col_widths) + (ncols - 1) * legend.col_sep + 2 * legend.inner_pad
+    height = sum(row_heights) + (nrows - 1) * legend.row_sep + 2 * vertical_pad
+
+    return col_widths, row_heights, width, height
+end
+
+
 function _chart_axis_data_extent(chart::Chart, ax::Axis)
     lower = Inf
     upper = -Inf
@@ -562,30 +603,9 @@ function configure!(c::Chart, legend::Legend)
     legend.inner_pad = 1.5 * legend.row_sep
     legend.outer_pad = legend.inner_pad
 
-    plots = [p for p in c.dataseries if p.label != ""]
-
-    nlabels     = length(plots)
-    label_width = maximum(getsize(plot.label, legend.font_size)[1] for plot in plots)
-    label_heigh = maximum(getsize(plot.label, legend.font_size)[2] for plot in plots)
-
-    handle_length = legend.handle_length
-    row_sep       = legend.row_sep
-    inner_pad     = legend.inner_pad
-    col_sep       = legend.col_sep
-    ncols         = legend.ncols
-
-    nrows = ceil(Int, nlabels / legend.ncols)
-
-    col_witdhs = zeros(ncols)
-    for k in 1:length(plots)
-        j = k % ncols == 0 ? ncols : k % ncols # column
-        item_width = handle_length + 2 * inner_pad + label_width
-        col_witdhs[j] = max(col_witdhs[j], item_width)
-    end
-
-    legend.height = nrows * label_heigh + (nrows - 1) * row_sep + 2 * inner_pad
-    legend.width = sum(col_witdhs) + (ncols - 1) * col_sep + 2 * inner_pad
-
+    plots = _chart_legend_plots(c)
+    cc = _legend_measure_context(legend)
+    _, _, legend.width, legend.height = _legend_layout(legend, plots, cc)
 end
 
 
@@ -605,7 +625,7 @@ end
 
 
 function _chart_has_legend(c::Chart)
-    return any(ds.label != "" for ds in c.dataseries)
+    return !isempty(_chart_legend_plots(c))
 end
 
 
@@ -898,30 +918,17 @@ end
 function draw!(c::Chart, ctx::RenderContext, legend::Legend)
     cairo_ctx = ctx.cairo_ctx
 
-    plots = [p for p in c.dataseries if p.label != ""]
+    plots = _chart_legend_plots(c)
 
     set_font_size(cairo_ctx, legend.font_size)
     font = get_font(legend.font)
     select_font_face(cairo_ctx, font, Cairo.FONT_SLANT_NORMAL, Cairo.FONT_WEIGHT_NORMAL)
 
-    handle_length = legend.handle_length
-    row_sep = legend.row_sep
     inner_pad = legend.inner_pad
-    outer_pad = legend.outer_pad
     col_sep = legend.col_sep
     ncols = legend.ncols
 
-    # update the width
-    col_witdhs = zeros(ncols)
-    for (k, plot) in enumerate(plots)
-        j = k % ncols == 0 ? ncols : k % ncols # column
-        label_width = getsize(cairo_ctx, plot.label, legend.font_size)[1]
-        item_width = handle_length + 2 * inner_pad + label_width
-        col_witdhs[j] = max(col_witdhs[j], item_width)
-    end
-
-    # legend.height = nrows*label_heigh + (nrows-1)*row_sep + 2*inner_pad
-    legend.width = sum(col_witdhs) + (ncols - 1) * col_sep + 2 * inner_pad
+    col_widths, row_heights, legend.width, legend.height = _legend_layout(legend, plots, cairo_ctx)
 
     x1 = legend.frame.x
     y1 = legend.frame.y
@@ -949,20 +956,17 @@ function draw!(c::Chart, ctx::RenderContext, legend::Legend)
     set_line_width(cairo_ctx, 0.4 * ctx.width_scale)
     stroke(cairo_ctx)
 
-    # draw labels
-    label_heigh = maximum(getsize(plot.label, legend.font_size)[2] for plot in plots)
-
     for (k, plot) in enumerate(plots)
         i = ceil(Int, k / ncols)  # line
         j = k % ncols == 0 ? ncols : k % ncols # column
-        x2 = x1 + inner_pad + sum(col_witdhs[1:j-1]) + (j - 1) * col_sep
+        x2 = x1 + inner_pad + sum(col_widths[1:j-1]) + (j - 1) * col_sep
 
-        y2 = y1 + inner_pad + label_heigh / 2 + (i - 1) * (label_heigh + row_sep)
+        y2 = y1 + legend.row_sep + sum(row_heights[1:i-1]) + (i - 1) * legend.row_sep + row_heights[i] / 2
 
         set_source_rgb(cairo_ctx, rgb(plot.color)...)
         if plot.kind == :bar
             hbar = 0.6 * legend.font_size
-            rectangle(cairo_ctx, x2, y2 - 0.5 * hbar, handle_length, hbar)
+            rectangle(cairo_ctx, x2, y2 - 0.5 * hbar, legend.handle_length, hbar)
             fill_preserve(cairo_ctx)
             set_source_rgb(cairo_ctx, 0.0, 0.0, 0.0)
             set_line_width(cairo_ctx, max(plot.line_width, 0.4) * ctx.width_scale)
@@ -970,7 +974,7 @@ function draw!(c::Chart, ctx::RenderContext, legend::Legend)
             set_source_rgb(cairo_ctx, rgb(plot.color)...)
         elseif plot.line_style != :none
             move_to(cairo_ctx, x2, y2)
-            rel_line_to(cairo_ctx, handle_length, 0)
+            rel_line_to(cairo_ctx, legend.handle_length, 0)
             set_line_width(cairo_ctx, plot.line_width * ctx.width_scale)
             plot.line_style != :solid && set_dash(cairo_ctx, plot.dash)
             stroke(cairo_ctx)
@@ -979,12 +983,12 @@ function draw!(c::Chart, ctx::RenderContext, legend::Legend)
 
         # draw mark
         if plot.kind != :bar
-            x = x2 + handle_length / 2
+            x = x2 + legend.handle_length / 2
             draw_mark(cairo_ctx, x, y2, plot.mark, plot.mark_size, plot.mark_color, plot.mark_stroke_color)
         end
 
         # draw label
-        x = x2 + handle_length + 2 * inner_pad
+        x = x2 + legend.handle_length + 2 * inner_pad
         y = y2
 
         set_source_rgb(cairo_ctx, 0, 0, 0)

@@ -1,16 +1,19 @@
 # This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 """
-    ChartGrid(; title="", size=(420,320), font="serif", font_size=10.0,
+    ChartGrid(; title="", size=nothing, font="serif", font_size=10.0,
                 background=nothing,
                 column_headers=String[], row_headers=String[],
                 outerpad=0.0, hgap=8.0, vgap=8.0)
 
-Create a composed figure that arranges child figures in a uniform grid.
+Create a composed figure that arranges child figures in a grid with
+row/column sizes derived from its contents.
 
 # Keywords
 - `title::AbstractString`: grid title centered above the cells.
-- `size::Tuple{<:Real,<:Real}`: figure size in points. Use `cm` as a convenience helper, e.g. `size=(16cm, 10cm)`.
+- `size::Union{Nothing,Tuple{<:Real,<:Real}}`: figure size in points. `nothing`
+  enables autosize based on child figures. Use `cm` as a convenience helper,
+  e.g. `size=(16cm, 10cm)`.
 - `font::AbstractString`: font family used for the grid title and headers.
 - `font_size::Real`: title and header font size.
 - `background`: full-figure background fill; `nothing` leaves the figure unfilled.
@@ -40,16 +43,18 @@ mutable struct ChartGrid <: Figure
     column_header_boxes::Vector{TextBox}
     row_header_boxes::Vector{TextBox}
     outerpad::Float64
+    requested_outerpad::Float64
     hgap::Float64
     vgap::Float64
     children::Dict{Tuple{Int,Int},Figure}
     cell_frames::Dict{Tuple{Int,Int},Frame}
     nrows::Int
     ncols::Int
+    auto_size::Bool
 
     function ChartGrid(;
         title::AbstractString="",
-        size::Tuple{<:Real,<:Real}=(420, 320),
+        size::Union{Nothing,Tuple{<:Real,<:Real}}=nothing,
         font::AbstractString="NewComputerModern",
         font_size::Real=12.0,
         background=nothing,
@@ -63,7 +68,8 @@ mutable struct ChartGrid <: Figure
         hgap >= 0 || throw(ArgumentError("ChartGrid: hgap must be non-negative"))
         vgap >= 0 || throw(ArgumentError("ChartGrid: vgap must be non-negative"))
 
-        width, height = size
+        auto_size = size === nothing
+        width, height = auto_size ? (0.0, 0.0) : size
         background = resolve_color(background)
         title_box = TextBox(title)
         column_header_boxes = TextBox[TextBox(String(s)) for s in column_headers]
@@ -79,12 +85,14 @@ mutable struct ChartGrid <: Figure
             column_header_boxes,
             row_header_boxes,
             float(outerpad),
+            float(outerpad),
             float(hgap),
             float(vgap),
             Dict{Tuple{Int,Int},Figure}(),
             Dict{Tuple{Int,Int},Frame}(),
             0,
             0,
+            auto_size,
         )
     end
 end
@@ -153,59 +161,148 @@ function _measure_grid_headers(grid::ChartGrid)
 end
 
 
+function _grid_validate_tracks(grid::ChartGrid)
+    grid.nrows > 0 && grid.ncols > 0 || throw(ArgumentError("ChartGrid: invalid grid dimensions"))
+
+    occupied_rows = falses(grid.nrows)
+    occupied_cols = falses(grid.ncols)
+    for (i, j) in keys(grid.children)
+        occupied_rows[i] = true
+        occupied_cols[j] = true
+    end
+
+    missing_row = findfirst(!, occupied_rows)
+    missing_col = findfirst(!, occupied_cols)
+    missing_row === nothing || throw(ArgumentError("ChartGrid: row $missing_row has no child figures"))
+    missing_col === nothing || throw(ArgumentError("ChartGrid: column $missing_col has no child figures"))
+    return nothing
+end
+
+
+function _grid_child_natural_size!(child::Chart)
+    return child.width, child.height
+end
+
+
+function _grid_child_natural_size!(child::ChartGrid)
+    child.auto_size && configure!(child)
+    return child.width, child.height
+end
+
+
+function _grid_track_sizes(grid::ChartGrid)
+    col_widths = zeros(grid.ncols)
+    row_heights = zeros(grid.nrows)
+
+    for ((i, j), child) in grid.children
+        width, height = _grid_child_natural_size!(child)
+        col_widths[j] = max(col_widths[j], width)
+        row_heights[i] = max(row_heights[i], height)
+    end
+
+    all(>(0.0), col_widths) || throw(ArgumentError("ChartGrid: every occupied column must have positive natural width"))
+    all(>(0.0), row_heights) || throw(ArgumentError("ChartGrid: every occupied row must have positive natural height"))
+    return col_widths, row_heights
+end
+
+
+function _grid_effective_outerpad(grid::ChartGrid, width::Real, height::Real)
+    return max(grid.requested_outerpad, 0.01 * min(width, height))
+end
+
+
+function _grid_auto_outerpad(grid::ChartGrid, base_width::Real, base_height::Real)
+    return max(grid.requested_outerpad, min(base_width, base_height) / 98.0)
+end
+
+
+function _grid_scaled_tracks(track_sizes::Vector{Float64}, available_size::Real, axis_name::AbstractString)
+    available_size > 0 || throw(ArgumentError("ChartGrid: insufficient space for grid $axis_name"))
+    total_size = sum(track_sizes)
+    total_size > 0 || throw(ArgumentError("ChartGrid: natural $axis_name sizes sum to zero"))
+    return track_sizes .* (available_size / total_size)
+end
+
+
 function configure!(grid::ChartGrid)
     length(grid.children) > 0 || throw(QuickChartsException("ChartGrid: no child figures added"))
+    _grid_validate_tracks(grid)
 
-    grid.figure_frame = Frame(grid.figure_frame.x, grid.figure_frame.y, grid.width, grid.height)
-    grid.outerpad = max(0.01 * min(grid.width, grid.height), grid.outerpad)
-
-    title_width, title_height = _measure_grid_title(grid)
+    title_height = _measure_grid_title(grid)[2]
     column_header_height, row_header_width = _measure_grid_headers(grid)
+    col_widths, row_heights = _grid_track_sizes(grid)
+
     title_gap = isempty(grid.title_box.text) ? 0.0 : 0.6 * grid.font_size
     column_header_gap = column_header_height > 0 ? 0.5 * grid.font_size : 0.0
     row_header_gap = row_header_width > 0 ? 0.5 * grid.font_size : 0.0
 
+    natural_track_width = sum(col_widths)
+    natural_track_height = sum(row_heights)
+    total_hgap = (grid.ncols - 1) * grid.hgap
+    total_vgap = (grid.nrows - 1) * grid.vgap
+
+    base_width = row_header_width + row_header_gap + natural_track_width + total_hgap
+    base_height = title_height + title_gap + column_header_height + column_header_gap + natural_track_height + total_vgap
+
+    if grid.auto_size
+        grid.outerpad = _grid_auto_outerpad(grid, base_width, base_height)
+        grid.width = base_width + 2 * grid.outerpad
+        grid.height = base_height + 2 * grid.outerpad
+        final_col_widths = copy(col_widths)
+        final_row_heights = copy(row_heights)
+    else
+        grid.outerpad = _grid_effective_outerpad(grid, grid.width, grid.height)
+        content_width = grid.width - 2 * grid.outerpad - row_header_width - row_header_gap
+        content_height = grid.height - 2 * grid.outerpad - title_height - title_gap - column_header_height - column_header_gap
+        track_width = content_width - total_hgap
+        track_height = content_height - total_vgap
+        final_col_widths = _grid_scaled_tracks(col_widths, track_width, "columns")
+        final_row_heights = _grid_scaled_tracks(row_heights, track_height, "rows")
+    end
+
+    grid.figure_frame = Frame(grid.figure_frame.x, grid.figure_frame.y, grid.width, grid.height)
     content_x = grid.figure_frame.x + grid.outerpad + row_header_width + row_header_gap
     content_y = grid.figure_frame.y + grid.outerpad + title_height + title_gap + column_header_height + column_header_gap
-    content_width = grid.width - 2 * grid.outerpad - row_header_width - row_header_gap
-    content_height = grid.height - 2 * grid.outerpad - title_height - title_gap - column_header_height - column_header_gap
+    content_width = sum(final_col_widths) + total_hgap
+    content_height = sum(final_row_heights) + total_vgap
 
-    grid.nrows > 0 && grid.ncols > 0 || throw(ArgumentError("ChartGrid: invalid grid dimensions"))
     content_width > 0 && content_height > 0 || throw(ArgumentError("ChartGrid: insufficient space for grid content"))
-
-    cell_width = (content_width - (grid.ncols - 1) * grid.hgap) / grid.ncols
-    cell_height = (content_height - (grid.nrows - 1) * grid.vgap) / grid.nrows
-    cell_width > 0 && cell_height > 0 || throw(ArgumentError("ChartGrid: insufficient space for grid cells"))
 
     grid.title_box.frame = Frame(content_x, grid.figure_frame.y + grid.outerpad, content_width, title_height)
     grid.title_box.angle = 0.0
     empty!(grid.cell_frames)
 
-    for i in 1:grid.nrows, j in 1:grid.ncols
-        x = content_x + (j - 1) * (cell_width + grid.hgap)
-        y = content_y + (i - 1) * (cell_height + grid.vgap)
-        grid.cell_frames[(i, j)] = Frame(x, y, cell_width, cell_height)
+    y = content_y
+    for i in 1:grid.nrows
+        x = content_x
+        for j in 1:grid.ncols
+            grid.cell_frames[(i, j)] = Frame(x, y, final_col_widths[j], final_row_heights[i])
+            x += final_col_widths[j] + grid.hgap
+        end
+        y += final_row_heights[i] + grid.vgap
     end
 
     if column_header_height > 0
         y = grid.figure_frame.y + grid.outerpad + title_height + title_gap
+        x = content_x
         for j in 1:grid.ncols
             j <= length(grid.column_header_boxes) || continue
-            x = content_x + (j - 1) * (cell_width + grid.hgap)
             box = grid.column_header_boxes[j]
-            box.frame = Frame(x, y, cell_width, column_header_height)
+            box.frame = Frame(x, y, final_col_widths[j], column_header_height)
             box.angle = 0.0
+            x += final_col_widths[j] + grid.hgap
         end
     end
 
     if row_header_width > 0
         x = grid.figure_frame.x + grid.outerpad
+        y = content_y
         for i in 1:grid.nrows
             i <= length(grid.row_header_boxes) || continue
-            y = content_y + (i - 1) * (cell_height + grid.vgap)
             box = grid.row_header_boxes[i]
-            box.frame = Frame(x, y, row_header_width, cell_height)
+            box.frame = Frame(x, y, row_header_width, final_row_heights[i])
             box.angle = 90.0
+            y += final_row_heights[i] + grid.vgap
         end
     end
 end
@@ -230,12 +327,14 @@ function _draw_grid_child!(ctx::RenderContext, child::Figure, frame::Frame)
     old_height = child.height
     old_frame = Frame(child.figure_frame.x, child.figure_frame.y, child.figure_frame.width, child.figure_frame.height)
     old_background = child isa Union{Chart,ChartGrid} ? child.background : nothing
+    old_auto_size = child isa ChartGrid ? child.auto_size : false
 
     try
         _set_grid_frame!(child, frame)
         if child isa Union{Chart,ChartGrid}
             child.background = nothing
         end
+        child isa ChartGrid && (child.auto_size = false)
         configure!(child)
         draw_contents!(child, ctx)
     finally
@@ -245,6 +344,7 @@ function _draw_grid_child!(ctx::RenderContext, child::Figure, frame::Frame)
         if child isa Union{Chart,ChartGrid}
             child.background = old_background
         end
+        child isa ChartGrid && (child.auto_size = old_auto_size)
     end
 end
 

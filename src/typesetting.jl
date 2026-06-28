@@ -94,6 +94,7 @@ const _paren_xscale_regular = 0.85
 const _paren_xscale_min = 0.6
 const _paren_outer_pad_factor = 0.06
 const _overbar_length_factor = 0.68
+const _script_child_size_factor = 0.6
 
 @inline function _paren_xscale_for_height(body_h::Float64, fontsize::Float64)
     ratio = body_h / max(fontsize, 1e-9)
@@ -177,6 +178,24 @@ function _identifier_nodes(name::AbstractString)
     end
 end
 
+function _parse_quoted_text(s::AbstractString, i::Int)
+    (i > lastindex(s) || s[i] != '\\') && return nothing, i
+    j = _next(s, i)
+    (j > lastindex(s) || s[j] != '"') && return nothing, i
+    text_start = _next(s, j)
+    pos = text_start
+    while pos <= lastindex(s)
+        if s[pos] == '\\'
+            k = _next(s, pos)
+            if k <= lastindex(s) && s[k] == '"'
+                return TSAtom(String(s[text_start:prevind(s, pos)]), false, false), _next(s, k)
+            end
+        end
+        pos = _next(s, pos)
+    end
+    return nothing, i
+end
+
 function _parse_script_arg(s::AbstractString, i::Int)
     i > lastindex(s) && return TSAtom("", false, false), i
 
@@ -198,6 +217,10 @@ function _parse_script_arg(s::AbstractString, i::Int)
     elseif _is_number_start(s, i)
         number, j = _read_number(s, i)
         return TSAtom(number, false, false), j
+    elseif c == '\\'
+        quoted, j = _parse_quoted_text(s, i)
+        quoted !== nothing && return quoted, j
+        return _atom_from_char(c, in_math=true), _next(s, i)
     else
         return _atom_from_char(c, in_math=true), _next(s, i)
     end
@@ -208,6 +231,31 @@ end
         return TSAtom("", false, false)
     end
     return length(nodes) == 1 ? nodes[1] : TSGroup(nodes)
+end
+
+function _find_paren_body(s::AbstractString, i::Int)
+    i = _skip_spaces(s, i)
+    (i > lastindex(s) || s[i] != '(') && return nothing, i
+    start = _next(s, i)
+    pos = start
+    depth = 1
+    while pos <= lastindex(s)
+        c = s[pos]
+        if c == '('
+            depth += 1
+        elseif c == ')'
+            depth -= 1
+            depth == 0 && break
+        end
+        pos = _next(s, pos)
+    end
+    depth != 0 && return nothing, i
+    return strip(s[start:prevind(s, pos)]), _next(s, pos)
+end
+
+function _parse_body(body_str::AbstractString)
+    nodes, _ = isempty(body_str) ? (TypesetNode[], 1) : _parse_math_seq(body_str, firstindex(body_str))
+    return _nodes_to_node(nodes)
 end
 
 function _parse_fraction_call(s::AbstractString, i::Int)
@@ -239,66 +287,19 @@ function _parse_fraction_call(s::AbstractString, i::Int)
 
     num_str = strip(s[start:prevind(s, comma_pos)])
     den_str = strip(s[_next(s, comma_pos):prevind(s, pos)])
-
-    num_nodes, _ = isempty(num_str) ? (TypesetNode[], 1) : _parse_math_seq(num_str, firstindex(num_str))
-    den_nodes, _ = isempty(den_str) ? (TypesetNode[], 1) : _parse_math_seq(den_str, firstindex(den_str))
-
-    frac = TSFraction(_nodes_to_node(num_nodes), _nodes_to_node(den_nodes))
-    return frac, _next(s, pos)
+    return TSFraction(_parse_body(num_str), _parse_body(den_str)), _next(s, pos)
 end
 
 function _parse_sqrt_call(s::AbstractString, i::Int)
-    i = _skip_spaces(s, i)
-    if i > lastindex(s) || s[i] != '('
-        return nothing, i
-    end
-
-    start = _next(s, i)
-    pos = start
-    depth = 1
-    while pos <= lastindex(s)
-        c = s[pos]
-        if c == '('
-            depth += 1
-        elseif c == ')'
-            depth -= 1
-            depth == 0 && break
-        end
-        pos = _next(s, pos)
-    end
-
-    depth != 0 && return nothing, i
-
-    body_str = strip(s[start:prevind(s, pos)])
-    body_nodes, _ = isempty(body_str) ? (TypesetNode[], 1) : _parse_math_seq(body_str, firstindex(body_str))
-    return TSSqrt(_nodes_to_node(body_nodes)), _next(s, pos)
+    body_str, j = _find_paren_body(s, i)
+    body_str === nothing && return nothing, i
+    return TSSqrt(_parse_body(body_str)), j
 end
 
 function _parse_macron_call(s::AbstractString, i::Int)
-    i = _skip_spaces(s, i)
-    if i > lastindex(s) || s[i] != '('
-        return nothing, i
-    end
-
-    start = _next(s, i)
-    pos = start
-    depth = 1
-    while pos <= lastindex(s)
-        c = s[pos]
-        if c == '('
-            depth += 1
-        elseif c == ')'
-            depth -= 1
-            depth == 0 && break
-        end
-        pos = _next(s, pos)
-    end
-
-    depth != 0 && return nothing, i
-
-    body_str = strip(s[start:prevind(s, pos)])
-    body_nodes, _ = isempty(body_str) ? (TypesetNode[], 1) : _parse_math_seq(body_str, firstindex(body_str))
-    return TSOverbar(_nodes_to_node(body_nodes)), _next(s, pos)
+    body_str, j = _find_paren_body(s, i)
+    body_str === nothing && return nothing, i
+    return TSOverbar(_parse_body(body_str)), j
 end
 
 function _set_bold(node::TypesetNode)::TypesetNode
@@ -329,31 +330,9 @@ function _set_bold(node::TypesetNode)::TypesetNode
 end
 
 function _parse_bold_call(s::AbstractString, i::Int)
-    i = _skip_spaces(s, i)
-    if i > lastindex(s) || s[i] != '('
-        return nothing, i
-    end
-
-    start = _next(s, i)
-    pos = start
-    depth = 1
-    while pos <= lastindex(s)
-        c = s[pos]
-        if c == '('
-            depth += 1
-        elseif c == ')'
-            depth -= 1
-            depth == 0 && break
-        end
-        pos = _next(s, pos)
-    end
-
-    depth != 0 && return nothing, i
-
-    body_str = strip(s[start:prevind(s, pos)])
-    body_nodes, _ = isempty(body_str) ? (TypesetNode[], 1) : _parse_math_seq(body_str, firstindex(body_str))
-    bold_nodes = [_set_bold(n) for n in body_nodes]
-    return _nodes_to_node(bold_nodes), _next(s, pos)
+    body_str, j = _find_paren_body(s, i)
+    body_str === nothing && return nothing, i
+    return _set_bold(_parse_body(body_str)), j
 end
 
 function _attach_script(base::TypesetNode, op::Char, arg::TypesetNode)
@@ -378,6 +357,13 @@ function _bind_script!(nodes::Vector{TypesetNode}, op::Char, arg::TypesetNode)
     push!(nodes, _attach_script(pop!(nodes), op, arg))
 end
 
+const _call_parsers = Dict{String, Function}(
+    "frac"   => _parse_fraction_call,
+    "sqrt"   => _parse_sqrt_call,
+    "bold"   => _parse_bold_call,
+    "macron" => _parse_macron_call,
+)
+
 function _parse_math_seq(s::AbstractString, i::Int; stopchars::Set{Char}=Set{Char}())
     nodes = TypesetNode[]
 
@@ -392,41 +378,16 @@ function _parse_math_seq(s::AbstractString, i::Int; stopchars::Set{Char}=Set{Cha
             push!(nodes, TSAtom(number, false, false))
         elseif _isletter(c)
             name, i = _read_identifier(s, i)
-            if name == "frac"
-                frac, j = _parse_fraction_call(s, i)
-                if frac === nothing
-                    append!(nodes, _identifier_nodes(name))
-                else
-                    push!(nodes, frac)
+            parser = get(_call_parsers, name, nothing)
+            if parser !== nothing
+                result, j = parser(s, i)
+                if result !== nothing
+                    push!(nodes, result)
                     i = j
+                    continue
                 end
-            elseif name == "sqrt"
-                sqrt_node, j = _parse_sqrt_call(s, i)
-                if sqrt_node === nothing
-                    append!(nodes, _identifier_nodes(name))
-                else
-                    push!(nodes, sqrt_node)
-                    i = j
-                end
-            elseif name == "bold"
-                bold_node, j = _parse_bold_call(s, i)
-                if bold_node === nothing
-                    append!(nodes, _identifier_nodes(name))
-                else
-                    push!(nodes, bold_node)
-                    i = j
-                end
-            elseif name == "macron"
-                macron_node, j = _parse_macron_call(s, i)
-                if macron_node === nothing
-                    append!(nodes, _identifier_nodes(name))
-                else
-                    push!(nodes, macron_node)
-                    i = j
-                end
-            else
-                append!(nodes, _identifier_nodes(name))
             end
+            append!(nodes, _identifier_nodes(name))
         elseif c == '{'
             inner, j = _parse_math_seq(s, _next(s, i); stopchars=Set(['}']))
             push!(nodes, TSGroup(inner))
@@ -466,6 +427,15 @@ function _parse_math_seq(s::AbstractString, i::Int; stopchars::Set{Char}=Set{Cha
         elseif c == '-'
             push!(nodes, TSAtom("−", false, false))
             i = _next(s, i)
+        elseif c == '\\'
+            quoted, j = _parse_quoted_text(s, i)
+            if quoted !== nothing
+                push!(nodes, quoted)
+                i = j
+            else
+                push!(nodes, _atom_from_char(c, in_math=true))
+                i = _next(s, i)
+            end
         else
             push!(nodes, _atom_from_char(c, in_math=true))
             i = _next(s, i)
@@ -477,19 +447,29 @@ end
 
 function _parse_text_chunk(s::AbstractString)
     nodes = TypesetNode[]
+    buf = IOBuffer()
+
+    function flush_text!()
+        position(buf) == 0 && return
+        push!(nodes, TSAtom(String(take!(buf)), false, false))
+        return
+    end
+
     i = firstindex(s)
     while i <= lastindex(s)
         if s[i] == '\\'
             j = _next(s, i)
             if j <= lastindex(s) && s[j] == '`'
+                flush_text!()
                 push!(nodes, TSAtom("`", false, false))
                 i = _next(s, j)
                 continue
             end
         end
-        push!(nodes, TSAtom(string(s[i]), false, false))
+        print(buf, s[i])
         i = _next(s, i)
     end
+    flush_text!()
     return nodes
 end
 
@@ -535,16 +515,19 @@ function parse_typeset(s::AbstractString)
     return nodes
 end
 
+@inline function _set_font_face!(cc::CairoContext, font::String, italic::Bool, bold::Bool, fontsize::Float64)
+    weight = bold ? Cairo.FONT_WEIGHT_BOLD : Cairo.FONT_WEIGHT_NORMAL
+    select_font_face(cc, font, italic ? Cairo.FONT_SLANT_ITALIC : Cairo.FONT_SLANT_NORMAL, weight)
+    set_font_size(cc, fontsize)
+end
+
 function _measure_text(cc::CairoContext, font::String, text::String, fontsize::Float64, italic::Bool, bold::Bool=false)
     if isempty(text)
         return 0.0, 0.0, 0.0, 0.0
     end
 
     Cairo.save(cc)
-    weight = bold ? Cairo.FONT_WEIGHT_BOLD : Cairo.FONT_WEIGHT_NORMAL
-    select_font_face(cc, font, italic ? Cairo.FONT_SLANT_ITALIC : Cairo.FONT_SLANT_NORMAL, weight)
-    set_font_size(cc, fontsize)
-
+    _set_font_face!(cc, font, italic, bold, fontsize)
     te = text_extents(cc, text)
     Cairo.restore(cc)
 
@@ -560,9 +543,7 @@ function _atom_ink_right(cc::CairoContext, font::String, atom::TSAtom, fontsize:
     isempty(atom.text) && return 0.0
 
     Cairo.save(cc)
-    weight = atom.bold ? Cairo.FONT_WEIGHT_BOLD : Cairo.FONT_WEIGHT_NORMAL
-    select_font_face(cc, font, atom.italic ? Cairo.FONT_SLANT_ITALIC : Cairo.FONT_SLANT_NORMAL, weight)
-    set_font_size(cc, fontsize)
+    _set_font_face!(cc, font, atom.italic, atom.bold, fontsize)
     te = text_extents(cc, atom.text)
     Cairo.restore(cc)
 
@@ -574,9 +555,7 @@ function _atom_left_pad(cc::CairoContext, font::String, atom::TSAtom, fontsize::
     isempty(atom.text) && return 0.0
 
     Cairo.save(cc)
-    weight = atom.bold ? Cairo.FONT_WEIGHT_BOLD : Cairo.FONT_WEIGHT_NORMAL
-    select_font_face(cc, font, atom.italic ? Cairo.FONT_SLANT_ITALIC : Cairo.FONT_SLANT_NORMAL, weight)
-    set_font_size(cc, fontsize)
+    _set_font_face!(cc, font, atom.italic, atom.bold, fontsize)
     te = text_extents(cc, atom.text)
     Cairo.restore(cc)
 
@@ -640,7 +619,7 @@ function _node_width(cc::CairoContext, node::TypesetNode, font::String, fontsize
             base_w - trailing_pad
         end
         sub_adjust = _script_sub_x_adjust(s.base, fontsize, s.sub !== nothing)
-        child_size = 0.7 * fontsize
+        child_size = _script_child_size_factor * fontsize
         sub_w = s.sub === nothing ? 0.0 : _node_width(cc, s.sub, font, child_size)
         sup_w = s.sup === nothing ? 0.0 : _node_width(cc, s.sup, font, child_size)
         sup_x = base_anchor + 0.07 * fontsize
@@ -802,7 +781,7 @@ function _layout_node!(cc::CairoContext, node::TypesetNode, font::String, glyphs
         sub_x = sup_x + sub_adjust
         sub_w = 0.0
         sup_w = 0.0
-        child_size = 0.6 * fontsize
+        child_size = _script_child_size_factor * fontsize
 
         sup_extra = max(0.0, base_ascent - 0.6 * fontsize)
         sub_extra = max(0.0, base_descent - 0.25 * fontsize)
@@ -941,9 +920,7 @@ end
 
 function draw_typeset_layout!(cc::CairoContext, layout::TypesetLayout; font::String="serif")
     for glyph in layout.glyphs
-        weight = glyph.bold ? Cairo.FONT_WEIGHT_BOLD : Cairo.FONT_WEIGHT_NORMAL
-        select_font_face(cc, font, glyph.italic ? Cairo.FONT_SLANT_ITALIC : Cairo.FONT_SLANT_NORMAL, weight)
-        set_font_size(cc, glyph.fontsize)
+        _set_font_face!(cc, font, glyph.italic, glyph.bold, glyph.fontsize)
         Cairo.save(cc)
         draw_x = glyph.x
         if glyph.xscale != 1.0

@@ -44,7 +44,11 @@ end
 Base.show(io::IO, ::MIME"text/plain", chart::Chart) = show(io, chart)
 
 function Base.show(io::IO, grid::ChartGrid)
-    print(io, "ChartGrid(size=", grid.width, " x ", grid.height, " pt")
+    if grid.auto_size && grid.width == 0 && grid.height == 0
+        print(io, "ChartGrid(size=auto")
+    else
+        print(io, "ChartGrid(size=", grid.width, " x ", grid.height, " pt")
+    end
     if !isempty(grid.title_box.text)
         print(io, ", title=")
         _show_quoted(io, grid.title_box.text)

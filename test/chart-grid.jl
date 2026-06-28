@@ -74,3 +74,60 @@ save(chart1, joinpath("output", "chart-grid-child.pdf"))
 @test chart2.dataseries[2].color == Color(:royal_blue)
 @test chart2.dataseries[2].mark_color == Color(:white)
 @test chart2.dataseries[2].mark_stroke_color == Color(:black)
+
+wide = Chart(size=(200, 50))
+tall = Chart(size=(150, 120))
+medium = Chart(size=(100, 70))
+small = Chart(size=(80, 40))
+
+auto = ChartGrid(hgap=10.0, vgap=5.0)
+add_chart(auto, wide, (1, 1))
+add_chart(auto, medium, (1, 2))
+add_chart(auto, tall, (2, 1))
+add_chart(auto, small, (2, 2))
+
+QuickCharts.configure!(auto)
+expected_auto_outerpad = 195 / 98
+@test isapprox(auto.outerpad, expected_auto_outerpad; atol=1e-8)
+@test isapprox(auto.width, 310 + 2 * expected_auto_outerpad; atol=1e-8)
+@test isapprox(auto.height, 195 + 2 * expected_auto_outerpad; atol=1e-8)
+@test isapprox(auto.cell_frames[(1, 1)].width, 200)
+@test isapprox(auto.cell_frames[(1, 2)].width, 100)
+@test isapprox(auto.cell_frames[(2, 1)].height, 120)
+@test isapprox(auto.cell_frames[(1, 1)].height, 70)
+
+scaled = ChartGrid(size=(600, 400), hgap=10.0, vgap=5.0)
+add_chart(scaled, wide, (1, 1))
+add_chart(scaled, medium, (1, 2))
+add_chart(scaled, tall, (2, 1))
+add_chart(scaled, small, (2, 2))
+
+QuickCharts.configure!(scaled)
+expected_scaled_outerpad = 4.0
+expected_col_scale = (scaled.width - 2 * expected_scaled_outerpad - scaled.hgap) / 300
+expected_row_scale = (scaled.height - 2 * expected_scaled_outerpad - scaled.vgap) / 190
+@test isapprox(scaled.outerpad, expected_scaled_outerpad)
+@test isapprox(scaled.cell_frames[(1, 1)].width, 200 * expected_col_scale; atol=1e-8)
+@test isapprox(scaled.cell_frames[(1, 2)].width, 100 * expected_col_scale; atol=1e-8)
+@test isapprox(scaled.cell_frames[(1, 1)].height, 70 * expected_row_scale; atol=1e-8)
+@test isapprox(scaled.cell_frames[(2, 1)].height, 120 * expected_row_scale; atol=1e-8)
+
+sub_auto = ChartGrid(hgap=6.0)
+sub_left = Chart(size=(90, 50))
+sub_right = Chart(size=(140, 60))
+add_chart(sub_auto, sub_left, (1, 1))
+add_chart(sub_auto, sub_right, (1, 2))
+QuickCharts.configure!(sub_auto)
+
+parent_auto = ChartGrid(hgap=8.0)
+parent_right = Chart(size=(120, 80))
+add_chart(parent_auto, sub_auto, (1, 1))
+add_chart(parent_auto, parent_right, (1, 2))
+QuickCharts.configure!(parent_auto)
+@test isapprox(parent_auto.cell_frames[(1, 1)].width, sub_auto.width; atol=1e-8)
+@test isapprox(parent_auto.cell_frames[(1, 1)].height, 80; atol=1e-8)
+
+sparse = ChartGrid()
+add_chart(sparse, Chart(size=(40, 30)), (1, 1))
+add_chart(sparse, Chart(size=(40, 30)), (1, 3))
+@test_throws ArgumentError QuickCharts.configure!(sparse)

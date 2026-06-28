@@ -59,6 +59,11 @@ chart_svg_show = sprint(show, MIME("image/svg+xml"), chart)
 @test_throws ArgumentError render(chart; format=:png)
 @test_throws ArgumentError render(chart; scale=0)
 
+auto_grid = ChartGrid()
+auto_grid_show = sprint(show, auto_grid)
+@test auto_grid_show == "ChartGrid(size=auto, layout=0 x 0, children=0, column_headers=0, row_headers=0)"
+@test sprint(show, MIME("text/plain"), auto_grid) == auto_grid_show
+
 grid = ChartGrid(size=(12cm, 8cm))
 @test isapprox(grid.width, 12cm)
 @test isapprox(grid.height, 8cm)
@@ -68,6 +73,13 @@ grid_show = sprint(show, grid)
 @test sprint(show, MIME("text/plain"), grid) == grid_show
 @test !occursin("QuickCharts.Frame", grid_show)
 @test !occursin("Dict", grid_show)
+
+auto_chart = Chart(size=(4cm, 3cm))
+add_line(auto_chart, 0:1, 0:1; label="diag")
+add_chart(auto_grid, auto_chart, (1, 1))
+auto_grid_svg = render(auto_grid; scale=1)
+@test isapprox(svg_dimension(auto_grid_svg, "width"), auto_grid.width)
+@test isapprox(svg_dimension(auto_grid_svg, "height"), auto_grid.height)
 
 grid_png_file = joinpath("output", "chart-grid-cm.png")
 QuickCharts.save(grid, grid_png_file)

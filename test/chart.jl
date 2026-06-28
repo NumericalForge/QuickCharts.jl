@@ -7,6 +7,11 @@ Y1 = sin.(X)
 Y2 = cos.(X)
 Y3 = sin.(X) .* cos.(X)
 
+default_chart = Chart()
+@test default_chart.xaxis.font_size == 10.0
+@test default_chart.yaxis.font_size == 10.0
+@test default_chart.legend.font_size == 10.0
+
 chart = Chart(
     title="Trigonometric Responses",
     background=:white,
@@ -50,6 +55,31 @@ epoints_h = QuickCharts._annotation_connector_points(0.0, 0.0, 4.0, 2.0, 10.0, 3
 outfile = joinpath("output", "chart.pdf")
 save(chart, outfile)
 @test isfile(outfile)
+
+legend_width_chart = Chart(
+    size=(8cm, 5cm),
+    font="Times New Roman",
+    font_size=8.0,
+    legend=:top_right,
+)
+legend_width_chart.legend.ncols = 2
+add_line(legend_width_chart, [0.0, 1.0], [0.0, 1.0]; label="Isoparametric quadratic beam")
+add_line(legend_width_chart, [0.0, 1.0], [1.0, 2.0]; label="short")
+QuickCharts.configure!(legend_width_chart)
+legend = legend_width_chart.legend
+cc = QuickCharts._legend_measure_context(legend)
+long_width = QuickCharts.getsize(cc, "Isoparametric quadratic beam", legend.font_size)[1]
+short_width = QuickCharts.getsize(cc, "short", legend.font_size)[1]
+long_item_width = legend.handle_length + 2 * legend.inner_pad + long_width
+short_item_width = legend.handle_length + 2 * legend.inner_pad + short_width
+expected_legend_width = long_item_width + short_item_width + legend.col_sep + 2 * legend.inner_pad
+old_global_width = 2 * long_item_width + legend.col_sep + 2 * legend.inner_pad
+@test isapprox(legend.width, expected_legend_width; atol=1.0e-6)
+@test legend.width < old_global_width
+_, row_heights, _, expected_legend_height = QuickCharts._legend_layout(legend, QuickCharts._chart_legend_plots(legend_width_chart), cc)
+old_global_height = length(row_heights) * maximum(row_heights) + (length(row_heights) - 1) * legend.row_sep + 2 * legend.inner_pad
+@test isapprox(legend.height, expected_legend_height; atol=1.0e-6)
+@test legend.height < old_global_height
 
 tag_chart = Chart(
     size=(12cm, 8cm),
@@ -125,7 +155,7 @@ peak_chart = Chart(
 peak_x = [0.0, 1.0, 2.0]
 peak_y = [0.0, 1.0, 0.0]
 add_line(peak_chart, peak_x, peak_y; color=:black, label="peak")
-configure!(peak_chart)
+QuickCharts.configure!(peak_chart)
 
 x_peak, y_peak, angle_peak = QuickCharts._resolve_tag_point_and_tangent(peak_chart.canvas, peak_x, peak_y, 0.5)
 x_vertex, y_vertex = data2user(peak_chart.canvas, 1.0, 1.0)

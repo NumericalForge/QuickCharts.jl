@@ -10,6 +10,14 @@ wm, hm = QuickCharts.getsize("Load `P` at \$x\$", 8.0)
 @test wm > 0
 @test hm > 0
 
+plain_nodes = QuickCharts.parse_typeset("Isoparametric quadratic beam")
+@test length(plain_nodes) == 1
+@test plain_nodes[1].text == "Isoparametric quadratic beam"
+@test !plain_nodes[1].italic
+
+escaped_tick_nodes = QuickCharts.parse_typeset("label \\` tick")
+@test [n.text for n in escaped_tick_nodes] == ["label ", "`", " tick"]
+
 math_nodes = QuickCharts.parse_typeset("`xAh`")
 @test [n.text for n in math_nodes] == ["x", "A", "h"]
 @test all(n.italic for n in math_nodes)
@@ -69,6 +77,19 @@ num_identifier_nodes = QuickCharts.parse_typeset("`2foo`")
 @test QuickCharts._implicit_atom_spacing(num_var_nodes[1], num_var_nodes[2], 10.0) == 0.0
 @test QuickCharts._implicit_atom_spacing(num_identifier_nodes[1], num_identifier_nodes[2], 10.0) == 0.0
 @test QuickCharts._implicit_atom_spacing(signed_number_nodes[1], signed_number_nodes[2], 10.0) == 0.0
+
+quoted_text_nodes = QuickCharts.parse_typeset("`x_\\\"min\\\"`")
+@test length(quoted_text_nodes) == 1
+@test quoted_text_nodes[1] isa QuickCharts.TSScripts
+sub = quoted_text_nodes[1].sub
+@test sub isa QuickCharts.TSAtom
+@test sub.text == "min"
+@test !sub.italic
+
+mixed_quoted_nodes = QuickCharts.parse_typeset("`alpha + \\\"text\\\"`")
+@test mixed_quoted_nodes[end] isa QuickCharts.TSAtom
+@test mixed_quoted_nodes[end].text == "text"
+@test !mixed_quoted_nodes[end].italic
 
 chart = Chart(
     title="Axial `sigma_n`",
