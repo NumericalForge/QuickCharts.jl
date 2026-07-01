@@ -236,9 +236,6 @@ function add_series(chart::Chart, X::AbstractArray, Y::AbstractArray; kwargs...)
     return add_series(chart, :line, X, Y; kwargs...)
 end
 
-# Aliases
-const add_series = add_series
-
 """
     add_line(chart::Chart, X::AbstractArray, Y::AbstractArray; kwargs...)
 

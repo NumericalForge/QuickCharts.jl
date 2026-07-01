@@ -178,6 +178,25 @@ function _identifier_nodes(name::AbstractString)
     end
 end
 
+function _parse_single_quoted_text(s::AbstractString, i::Int)
+    text_start = _next(s, i)
+    pos = text_start
+    while pos <= lastindex(s) && s[pos] != '\''
+        pos = _next(s, pos)
+    end
+    pos > lastindex(s) && return nothing, i
+    return TSAtom(String(s[text_start:prevind(s, pos)]), false, false), _next(s, pos)
+end
+
+@inline function _is_prime_base(node::TypesetNode)
+    if node isa TSAtom
+        t = (node::TSAtom).text
+        isempty(t) && return false
+        return _isletter(t[firstindex(t)])
+    end
+    return node isa TSScripts || node isa TSParenGroup || node isa TSGroup
+end
+
 function _parse_quoted_text(s::AbstractString, i::Int)
     (i > lastindex(s) || s[i] != '\\') && return nothing, i
     j = _next(s, i)
@@ -217,6 +236,10 @@ function _parse_script_arg(s::AbstractString, i::Int)
     elseif _is_number_start(s, i)
         number, j = _read_number(s, i)
         return TSAtom(number, false, false), j
+    elseif c == '\''
+        atom, j = _parse_single_quoted_text(s, i)
+        atom !== nothing && return atom, j
+        return TSAtom("'", false, false), _next(s, i)
     elseif c == '\\'
         quoted, j = _parse_quoted_text(s, i)
         quoted !== nothing && return quoted, j
@@ -427,6 +450,20 @@ function _parse_math_seq(s::AbstractString, i::Int; stopchars::Set{Char}=Set{Cha
         elseif c == '-'
             push!(nodes, TSAtom("−", false, false))
             i = _next(s, i)
+        elseif c == '\''
+            if !isempty(nodes) && _is_prime_base(nodes[end])
+                _bind_script!(nodes, '^', TSAtom("′", false, false))
+                i = _next(s, i)
+            else
+                atom, j = _parse_single_quoted_text(s, i)
+                if atom !== nothing
+                    push!(nodes, atom)
+                    i = j
+                else
+                    push!(nodes, TSAtom("'", false, false))
+                    i = _next(s, i)
+                end
+            end
         elseif c == '\\'
             quoted, j = _parse_quoted_text(s, i)
             if quoted !== nothing

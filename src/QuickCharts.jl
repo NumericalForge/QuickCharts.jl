@@ -29,6 +29,6 @@ export VideoBuilder
 export draw!, draw_background!, draw_contents!
 export reset_matrix!, set_local_matrix!, draw_text, get_font, draw_mark
 export rgb, rgba, compute_auto_limits
-export data2user, user2data, _draw_figure_background!, _draw_text_box!
+export data2user, user2data
 
 end

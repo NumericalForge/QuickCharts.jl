@@ -91,6 +91,56 @@ mixed_quoted_nodes = QuickCharts.parse_typeset("`alpha + \\\"text\\\"`")
 @test mixed_quoted_nodes[end].text == "text"
 @test !mixed_quoted_nodes[end].italic
 
+frac_nodes = QuickCharts.parse_typeset("`frac(a,b)`")
+@test length(frac_nodes) == 1
+@test frac_nodes[1] isa QuickCharts.TSFraction
+@test frac_nodes[1].num isa QuickCharts.TSAtom
+@test frac_nodes[1].den isa QuickCharts.TSAtom
+@test frac_nodes[1].num.text == "a"
+@test frac_nodes[1].den.text == "b"
+
+sqrt_nodes = QuickCharts.parse_typeset("`sqrt(x)`")
+@test length(sqrt_nodes) == 1
+@test sqrt_nodes[1] isa QuickCharts.TSSqrt
+@test sqrt_nodes[1].body isa QuickCharts.TSAtom
+@test sqrt_nodes[1].body.text == "x"
+
+bold_nodes = QuickCharts.parse_typeset("`bold(x)`")
+@test length(bold_nodes) == 1
+@test bold_nodes[1] isa QuickCharts.TSAtom
+@test bold_nodes[1].text == "x"
+@test bold_nodes[1].bold
+
+macron_nodes = QuickCharts.parse_typeset("`macron(x)`")
+@test length(macron_nodes) == 1
+@test macron_nodes[1] isa QuickCharts.TSOverbar
+@test macron_nodes[1].body isa QuickCharts.TSAtom
+@test macron_nodes[1].body.text == "x"
+
+prime_nodes = QuickCharts.parse_typeset("`f'`")
+@test length(prime_nodes) == 1
+@test prime_nodes[1] isa QuickCharts.TSScripts
+@test prime_nodes[1].sup isa QuickCharts.TSAtom
+@test prime_nodes[1].sup.text == "′"
+
+double_prime_nodes = QuickCharts.parse_typeset("`x''`")
+@test length(double_prime_nodes) == 1
+@test double_prime_nodes[1] isa QuickCharts.TSScripts
+inner = double_prime_nodes[1].base
+@test inner isa QuickCharts.TSScripts
+@test inner.sup.text == "′"
+
+sub_single_quote_nodes = QuickCharts.parse_typeset("`x_'min'`")
+@test length(sub_single_quote_nodes) == 1
+@test sub_single_quote_nodes[1] isa QuickCharts.TSScripts
+@test sub_single_quote_nodes[1].sub.text == "min"
+@test !sub_single_quote_nodes[1].sub.italic
+
+inline_text_nodes = QuickCharts.parse_typeset("`E = 200 'GPa'`")
+@test inline_text_nodes[end] isa QuickCharts.TSAtom
+@test inline_text_nodes[end].text == "GPa"
+@test !inline_text_nodes[end].italic
+
 chart = Chart(
     title="Axial `sigma_n`",
     xlabel="`x`",

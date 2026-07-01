@@ -26,6 +26,6 @@ function user2data(canvas::Canvas, X::Float64, Y::Float64)
     Ymax = canvas.frame.y + canvas.frame.height
     xmin, ymin, xmax, ymax = canvas.limits
     x = xmin + (xmax-xmin)/(Xmax-Xmin)*(X-Xmin)
-    y = ymax + (ymax-ymin)/(Ymax-YMin)*(Ymin-Y)
+    y = ymax + (ymax-ymin)/(Ymax-Ymin)*(Ymin-Y)
     return x, y
 end
