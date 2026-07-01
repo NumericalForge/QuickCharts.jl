@@ -9,7 +9,7 @@ using QuickCharts
     line_series = ContourSeries(x, y, z; levels=[1.0], label="diag")
     @test !line_series.filled
     @test !isempty(line_series.line_segments)
-    @test isempty(line_series.fill_polygons)
+    @test isempty(line_series.fill_bands)
     @test line_series.color === :auto
     @test line_series.colormap.stops[1] < line_series.levels[1] < line_series.colormap.stops[end]
     @test sprint(show, line_series) == "ContourSeries(mode=:line, size=2x2, levels=1, label=\"diag\", order=0)"
@@ -21,7 +21,7 @@ using QuickCharts
 
     filled_series = ContourSeries(x, y, z; filled=true, levels=[0.0, 1.0, 2.0], colorbar=:right)
     @test filled_series.filled
-    @test !isempty(filled_series.fill_polygons)
+    @test !isempty(filled_series.fill_bands)
     @test !isempty(filled_series.line_segments)
     @test filled_series.colormap.stops[1] ≈ 0.0
     @test filled_series.colormap.stops[end] ≈ 2.0
@@ -46,8 +46,36 @@ using QuickCharts
         levels=[1.0, 2.0, 3.0],
         filled=true,
     )
-    @test isempty(hole_series.fill_polygons)
+    @test isempty(hole_series.fill_bands)
     @test isempty(hole_series.line_segments)
+
+    raw_connected = QuickCharts._raw_contour_fill_polygons(
+        [0.0, 1.0, 2.0],
+        [0.0, 1.0],
+        [0.0 0.5 1.0; 0.0 0.5 1.0],
+        [0.0, 1.0],
+    )
+    merged_connected = QuickCharts._merge_contour_fill_polygons(raw_connected, [0.0, 1.0])
+    @test length(raw_connected) > 1
+    @test length(merged_connected) == 1
+    @test length(merged_connected[1].polygons) == 1
+
+    raw_disconnected = [
+        (1, [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]),
+        (1, [(2.0, 0.0), (3.0, 0.0), (3.0, 1.0), (2.0, 1.0)]),
+    ]
+    merged_disconnected = QuickCharts._merge_contour_fill_polygons(raw_disconnected, [0.0, 1.0])
+    @test length(merged_disconnected) == 1
+    @test length(merged_disconnected[1].polygons) == 2
+
+    descending_series = ContourSeries(
+        reverse([0.0, 1.0, 2.0]),
+        [0.0, 1.0],
+        reverse([0.0 0.5 1.0; 0.0 0.5 1.0]; dims=2);
+        filled=true,
+        levels=[0.0, 1.0],
+    )
+    @test !isempty(descending_series.fill_bands)
 end
 
 @testset "Contour charts" begin
@@ -89,7 +117,7 @@ end
 
     overlay_chart = Chart(size=(8cm, 6cm), background=:white)
     overlay = add_contour(overlay_chart, x, y, z; filled=true, levels=[-1.0, 0.0, 1.0], colorbar=:right)
-    @test !isempty(overlay.fill_polygons)
+    @test !isempty(overlay.fill_bands)
     @test !isempty(overlay.line_segments)
 
     no_line_overlay = add_contour(overlay_chart, x, y, z .+ 0.2; filled=true, levels=[-0.8, 0.2, 1.2], line_style=:none, colorbar=:left)

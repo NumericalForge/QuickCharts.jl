@@ -1001,27 +1001,30 @@ function draw!(chart::Chart, ctx::RenderContext, p::ContourSeries)
     reset_matrix!(ctx)
 
     if p.filled
-        for (band_index, polygon) in p.fill_polygons
-            isempty(polygon) && continue
-            lower = p.levels[band_index]
-            upper = p.levels[band_index + 1]
-            midpoint = 0.5 * (lower + upper)
+        for band in p.fill_bands
+            isempty(band.polygons) && continue
+            midpoint = 0.5 * (band.lower + band.upper)
             r, g, b = p.colormap(midpoint)
             set_source_rgba(cairo_ctx, r, g, b, p.alpha)
 
-            x0, y0 = data2user(chart.canvas, polygon[1]...)
             new_path(cairo_ctx)
-            move_to(cairo_ctx, x0, y0)
-            for point in polygon[2:end]
-                x, y = data2user(chart.canvas, point...)
-                line_to(cairo_ctx, x, y)
+            for polygon in band.polygons
+                isempty(polygon) && continue
+                x0, y0 = data2user(chart.canvas, polygon[1]...)
+                move_to(cairo_ctx, x0, y0)
+                for point in polygon[2:end]
+                    x, y = data2user(chart.canvas, point...)
+                    line_to(cairo_ctx, x, y)
+                end
+                close_path(cairo_ctx)
             end
-            close_path(cairo_ctx)
+            Cairo.set_fill_type(cairo_ctx, Cairo.CAIRO_FILL_RULE_EVEN_ODD)
             fill_preserve(cairo_ctx)
             set_line_join(cairo_ctx, Cairo.CAIRO_LINE_JOIN_ROUND)
             set_line_cap(cairo_ctx, Cairo.CAIRO_LINE_CAP_ROUND)
             set_line_width(cairo_ctx, _contour_fill_seam_width(ctx))
             stroke(cairo_ctx)
+            Cairo.set_fill_type(cairo_ctx, Cairo.CAIRO_FILL_RULE_WINDING)
         end
     end
 

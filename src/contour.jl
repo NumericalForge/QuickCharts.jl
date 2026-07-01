@@ -1,6 +1,16 @@
 # This file is part of the QuickCharts.jl package. It is licensed under the MIT License.
 
 const _contour_colorbar_locations = (:none, :left, :right, :top, :bottom)
+const _ContourLoop = Vector{NTuple{2,Float64}}
+const _ContourPointKey = NTuple{2,Int}
+const _ContourEdgeKey = Tuple{_ContourPointKey,_ContourPointKey}
+
+struct ContourBand
+    index::Int
+    lower::Float64
+    upper::Float64
+    polygons::Vector{_ContourLoop}
+end
 
 function _resize_contour_colormap(cmap::Colormap, levels::Vector{Float64})
     if length(levels) == 1
@@ -89,7 +99,7 @@ mutable struct ContourSeries <: DataSeries
     label                ::AbstractString
     order                ::Int
     line_segments        ::Vector{Tuple{Float64,NTuple{4,Float64}}}
-    fill_polygons        ::Vector{Tuple{Int,Vector{NTuple{2,Float64}}}}
+    fill_bands           ::Vector{ContourBand}
 
     function ContourSeries(
         x::AbstractVector,
@@ -128,7 +138,7 @@ mutable struct ContourSeries <: DataSeries
         base_colormap = colormap isa Symbol ? Colormap(colormap) : colormap
         resolved_colormap = _resize_contour_colormap(base_colormap, resolved_levels)
         finite_z = float.(z)
-        line_segments, fill_polygons = _contour_geometry(x, y, finite_z, resolved_levels, filled, line_style)
+        line_segments, fill_bands = _contour_geometry(x, y, finite_z, resolved_levels, filled, line_style)
 
         return new(
             x,
@@ -149,7 +159,7 @@ mutable struct ContourSeries <: DataSeries
             label,
             order,
             line_segments,
-            fill_polygons,
+            fill_bands,
         )
     end
 end
@@ -272,6 +282,224 @@ function _triangle_band_polygon(triangle, lower, upper)
 end
 
 
+function _raw_contour_fill_polygons(x::AbstractVector, y::AbstractVector, z::AbstractMatrix, levels::Vector{Float64})
+    fill_polygons = Vector{Tuple{Int,_ContourLoop}}()
+
+    nx = length(x)
+    ny = length(y)
+
+    for j in 1:(ny - 1)
+        for i in 1:(nx - 1)
+            z11 = z[j, i]
+            z21 = z[j, i + 1]
+            z22 = z[j + 1, i + 1]
+            z12 = z[j + 1, i]
+            all(isfinite, (z11, z21, z22, z12)) || continue
+
+            triangles = _cell_triangles(x[i], x[i + 1], y[j], y[j + 1], z11, z21, z22, z12)
+
+            for band_index in 1:(length(levels) - 1)
+                lower = levels[band_index]
+                upper = levels[band_index + 1]
+                for triangle in triangles
+                    polygon = _triangle_band_polygon(triangle, lower, upper)
+                    polygon === nothing && continue
+                    push!(fill_polygons, (band_index, polygon))
+                end
+            end
+        end
+    end
+
+    return fill_polygons
+end
+
+
+function _contour_merge_tolerance(fill_polygons::Vector{Tuple{Int,_ContourLoop}})
+    isempty(fill_polygons) && return 1.0e-9
+
+    xmin = Inf
+    xmax = -Inf
+    ymin = Inf
+    ymax = -Inf
+    for (_, polygon) in fill_polygons
+        for (x, y) in polygon
+            xmin = min(xmin, x)
+            xmax = max(xmax, x)
+            ymin = min(ymin, y)
+            ymax = max(ymax, y)
+        end
+    end
+
+    span = max(xmax - xmin, ymax - ymin, 1.0)
+    return 1.0e-9 * span
+end
+
+
+_contour_quantize(value::Float64, tol::Float64) = round(Int, value / tol)
+
+
+function _contour_point_key(point::NTuple{2,Float64}, tol::Float64)
+    return (_contour_quantize(point[1], tol), _contour_quantize(point[2], tol))
+end
+
+
+function _contour_edge_key(key1::_ContourPointKey, key2::_ContourPointKey)
+    return key1 < key2 ? (key1, key2) : (key2, key1)
+end
+
+
+function _contour_register_boundary_edge!(
+    boundary_edges::Dict{_ContourEdgeKey,_ContourEdgeKey},
+    key1::_ContourPointKey,
+    key2::_ContourPointKey,
+)
+    edge_key = _contour_edge_key(key1, key2)
+    if haskey(boundary_edges, edge_key)
+        delete!(boundary_edges, edge_key)
+    else
+        boundary_edges[edge_key] = (key1, key2)
+    end
+    return nothing
+end
+
+
+function _contour_boundary_adjacency(boundary_edges::Dict{_ContourEdgeKey,_ContourEdgeKey})
+    adjacency = Dict{_ContourPointKey,Vector{_ContourPointKey}}()
+    for (_, (key1, key2)) in boundary_edges
+        push!(get!(adjacency, key1, _ContourPointKey[]), key2)
+        push!(get!(adjacency, key2, _ContourPointKey[]), key1)
+    end
+    return adjacency
+end
+
+
+function _contour_next_boundary_key(
+    adjacency::Dict{_ContourPointKey,Vector{_ContourPointKey}},
+    remaining_edges::Set{_ContourEdgeKey},
+    current_key::_ContourPointKey,
+    prev_key::_ContourPointKey,
+)
+    for key in get(adjacency, current_key, _ContourPointKey[])
+        key == prev_key && continue
+        _contour_edge_key(current_key, key) in remaining_edges || continue
+        return key
+    end
+    return nothing
+end
+
+
+function _contour_remove_consecutive_duplicates(points::_ContourLoop; atol::Float64)
+    isempty(points) && return points
+
+    cleaned = _ContourLoop()
+    push!(cleaned, points[1])
+    for point in points[2:end]
+        _same_xy(point, cleaned[end]; atol=atol) && continue
+        push!(cleaned, point)
+    end
+
+    length(cleaned) > 1 || return cleaned
+    _same_xy(cleaned[1], cleaned[end]; atol=atol) && pop!(cleaned)
+    return cleaned
+end
+
+
+function _contour_is_collinear(p1::NTuple{2,Float64}, p2::NTuple{2,Float64}, p3::NTuple{2,Float64}; atol::Float64)
+    area2 = (p2[1] - p1[1]) * (p3[2] - p1[2]) - (p2[2] - p1[2]) * (p3[1] - p1[1])
+    return isapprox(area2, 0.0; atol=atol)
+end
+
+
+function _contour_simplify_loop(points::_ContourLoop; atol::Float64)
+    cleaned = _contour_remove_consecutive_duplicates(points; atol)
+    length(cleaned) < 3 && return _ContourLoop()
+
+    simplified = copy(cleaned)
+    changed = true
+    while changed && length(simplified) >= 3
+        changed = false
+        n = length(simplified)
+        for i in 1:n
+            p_prev = simplified[mod1(i - 1, n)]
+            p = simplified[i]
+            p_next = simplified[mod1(i + 1, n)]
+            if _same_xy(p_prev, p; atol=atol) || _same_xy(p, p_next; atol=atol) || _contour_is_collinear(p_prev, p, p_next; atol)
+                deleteat!(simplified, i)
+                changed = true
+                break
+            end
+        end
+    end
+
+    return length(simplified) >= 3 ? simplified : _ContourLoop()
+end
+
+
+function _merge_contour_fill_polygons(fill_polygons::Vector{Tuple{Int,_ContourLoop}}, levels::Vector{Float64})
+    isempty(fill_polygons) && return ContourBand[]
+
+    tol = _contour_merge_tolerance(fill_polygons)
+    grouped = Dict{Int,Vector{_ContourLoop}}()
+    for (band_index, polygon) in fill_polygons
+        push!(get!(grouped, band_index, _ContourLoop[]), polygon)
+    end
+
+    fill_bands = ContourBand[]
+    for band_index in sort!(collect(keys(grouped)))
+        point_lookup = Dict{_ContourPointKey,NTuple{2,Float64}}()
+        boundary_edges = Dict{_ContourEdgeKey,_ContourEdgeKey}()
+
+        for polygon in grouped[band_index]
+            n = length(polygon)
+            for i in 1:n
+                p1 = polygon[i]
+                p2 = polygon[mod1(i + 1, n)]
+                _same_xy(p1, p2; atol=tol) && continue
+
+                key1 = _contour_point_key(p1, tol)
+                key2 = _contour_point_key(p2, tol)
+                key1 == key2 && continue
+                point_lookup[key1] = get(point_lookup, key1, p1)
+                point_lookup[key2] = get(point_lookup, key2, p2)
+                _contour_register_boundary_edge!(boundary_edges, key1, key2)
+            end
+        end
+
+        adjacency = _contour_boundary_adjacency(boundary_edges)
+        remaining_edges = Set(keys(boundary_edges))
+        polygons = _ContourLoop[]
+
+        while !isempty(remaining_edges)
+            start_edge = first(remaining_edges)
+            start_key, next_key = start_edge
+            cycle_keys = Tuple{Int,Int}[start_key, next_key]
+            delete!(remaining_edges, start_edge)
+
+            prev_key = start_key
+            current_key = next_key
+            while current_key != start_key
+                next_cycle_key = _contour_next_boundary_key(adjacency, remaining_edges, current_key, prev_key)
+                next_cycle_key === nothing && break
+                push!(cycle_keys, next_cycle_key)
+                delete!(remaining_edges, _contour_edge_key(current_key, next_cycle_key))
+                prev_key = current_key
+                current_key = next_cycle_key
+            end
+
+            current_key == start_key || continue
+            polygon = [point_lookup[key] for key in cycle_keys[1:end-1]]
+            polygon = _contour_simplify_loop(polygon; atol=tol)
+            isempty(polygon) || push!(polygons, polygon)
+        end
+
+        isempty(polygons) && continue
+        push!(fill_bands, ContourBand(band_index, levels[band_index], levels[band_index + 1], polygons))
+    end
+
+    return fill_bands
+end
+
+
 function _cell_triangles(x1, x2, y1, y2, z11, z21, z22, z12)
     xc = 0.5 * (x1 + x2)
     yc = 0.5 * (y1 + y2)
@@ -294,11 +522,16 @@ end
 
 function _contour_geometry(x::AbstractVector, y::AbstractVector, z::AbstractMatrix, levels::Vector{Float64}, filled::Bool, line_style::Symbol)
     line_segments = Tuple{Float64,NTuple{4,Float64}}[]
-    fill_polygons = Vector{Tuple{Int,Vector{NTuple{2,Float64}}}}()
+    fill_bands = ContourBand[]
 
     nx = length(x)
     ny = length(y)
     line_enabled = line_style != :none
+
+    if filled
+        raw_fill_polygons = _raw_contour_fill_polygons(x, y, z, levels)
+        fill_bands = _merge_contour_fill_polygons(raw_fill_polygons, levels)
+    end
 
     for j in 1:(ny - 1)
         for i in 1:(nx - 1)
@@ -309,18 +542,6 @@ function _contour_geometry(x::AbstractVector, y::AbstractVector, z::AbstractMatr
             all(isfinite, (z11, z21, z22, z12)) || continue
 
             triangles = _cell_triangles(x[i], x[i + 1], y[j], y[j + 1], z11, z21, z22, z12)
-
-            if filled
-                for band_index in 1:(length(levels) - 1)
-                    lower = levels[band_index]
-                    upper = levels[band_index + 1]
-                    for triangle in triangles
-                        polygon = _triangle_band_polygon(triangle, lower, upper)
-                        polygon === nothing && continue
-                        push!(fill_polygons, (band_index, polygon))
-                    end
-                end
-            end
 
             if line_enabled
                 for level in levels
@@ -334,5 +555,5 @@ function _contour_geometry(x::AbstractVector, y::AbstractVector, z::AbstractMatr
         end
     end
 
-    return line_segments, fill_polygons
+    return line_segments, fill_bands
 end
