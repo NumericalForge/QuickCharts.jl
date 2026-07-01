@@ -17,7 +17,7 @@ chart = Chart(size=(5cm, 4cm))
 
 series = add_line(chart, 0:1, 0:1; label="line")
 series_show = sprint(show, series)
-@test series_show == "DataSeries(:line, n=2, label=\"line\", style=:solid, mark=:none, order=1)"
+@test series_show == "LineSeries(n=2, label=\"line\", style=:solid, mark=:none, order=1)"
 @test sprint(show, MIME("text/plain"), series) == series_show
 @test !occursin("[0, 1]", series_show)
 
@@ -26,6 +26,32 @@ chart_show = sprint(show, chart)
 @test sprint(show, MIME("text/plain"), chart) == chart_show
 @test !occursin("QuickCharts.Frame", chart_show)
 @test !occursin("QuickCharts.Axis", chart_show)
+
+attach_chart = Chart(size=(4cm, 3cm))
+line_series = LineSeries(0:1, 0:1; color=:auto, label="explicit")
+attached_line = add_series(attach_chart, line_series)
+@test attached_line === line_series
+@test attached_line.color isa Color
+@test attached_line.order == 1
+
+bar_series = BarSeries(1:2, [2.0, 3.0]; color=:auto, label="bars")
+attached_bar = add_series(attach_chart, bar_series)
+@test attached_bar === bar_series
+@test attached_bar.color isa Color
+@test attached_bar.order == 2
+@test sprint(show, attached_bar) == "BarSeries(n=2, label=\"bars\", line_width=0.5, order=2)"
+
+ordered_series = LineSeries(0:1, 1:-1:0; order=7)
+@test add_series(attach_chart, ordered_series).order == 7
+
+@test_throws ArgumentError LineSeries([0.0], [0.0, 1.0])
+@test_throws ArgumentError LineSeries([0.0], [0.0]; line_style=:bad)
+@test_throws ArgumentError LineSeries([0.0], [0.0]; mark=:bad)
+@test_throws ArgumentError LineSeries([0.0], [0.0]; tag_padding=-0.1)
+@test_throws ArgumentError LineSeries([0.0], [0.0]; tag_font_size=0.0)
+@test_throws ArgumentError BarSeries([0.0], [0.0, 1.0])
+@test_throws ArgumentError BarSeries([0.0], [0.0]; line_width=0.0)
+@test_throws ArgumentError BarSeries([0.0], [0.0]; bar_width=-0.1)
 
 chart_pdf = joinpath("output", "chart-cm.pdf")
 QuickCharts.save(chart, chart_pdf)

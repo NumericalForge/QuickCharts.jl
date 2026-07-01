@@ -46,3 +46,20 @@ QuickCharts.configure!(bar_chart)
 small_span = QuickCharts.Axis(direction=:horizontal, limits=[1.0e-10, 1.5e-10])
 QuickCharts.configure!(small_span)
 @test length(small_span.ticks) > 1
+
+hidden_ticks = QuickCharts.Axis(direction=:horizontal, limits=[0.0, 1.0], label="x", ticks=:none)
+QuickCharts.configure!(hidden_ticks)
+@test hidden_ticks.show_ticks == false
+@test isempty(hidden_ticks.ticks)
+@test isempty(hidden_ticks.tick_labels)
+@test hidden_ticks.tick_length == 0.0
+
+hidden_chart = Chart(xlimits=[0.0, 1.0], ylimits=[0.0, 1.0], xticks=:none, yticks=:none)
+add_line(hidden_chart, [0.0, 1.0], [0.0, 1.0]; label="diag")
+QuickCharts.configure!(hidden_chart)
+@test hidden_chart.xaxis.show_ticks == false
+@test hidden_chart.yaxis.show_ticks == false
+@test isempty(hidden_chart.xaxis.ticks)
+@test isempty(hidden_chart.yaxis.ticks)
+
+@test_throws ArgumentError QuickCharts.Axis(direction=:horizontal, limits=[0.0, 1.0], ticks=:none, tick_labels=["a"])

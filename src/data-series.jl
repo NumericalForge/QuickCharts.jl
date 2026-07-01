@@ -6,16 +6,21 @@ const _tag_anchor_list = [:top, :top_right, :right, :bottom_right, :bottom, :bot
 
 
 """
-    DataSeries(kind::Symbol, X::AbstractArray, Y::AbstractArray; kwargs...)
-    DataSeries(X::AbstractArray, Y::AbstractArray; kwargs...)
+    DataSeries
 
-Store the data and styling for a chart series.
+Abstract supertype for chart series.
+"""
+abstract type DataSeries end
 
-`kind` must be `:line`, `:scatter`, or `:bar`; the two-argument constructor uses
-`:line`. `X` and `Y` must have equal length. Most users should create series
-with [`add_series`](@ref), [`add_line`](@ref), [`add_scatter`](@ref), or
-[`add_bar`](@ref), because those helpers also attach the series to a chart and
-resolve `color=:auto` against the chart palette.
+
+"""
+    LineSeries(X::AbstractVector, Y::AbstractVector; kwargs...)
+
+Store the data and styling for a line-like chart series.
+
+`X` and `Y` must have equal length. Most users should create series with
+[`add_line`](@ref) or [`add_scatter`](@ref), because those helpers also attach
+the series to a chart and resolve `color=:auto` against the chart palette.
 
 # Keyword options
 - `line_style`: one of `:none`, `:solid`, `:dot`, `:dash`, or `:dashdot`.
@@ -27,13 +32,11 @@ resolve `color=:auto` against the chart palette.
 - `mark_color`, `mark_stroke_color`: marker fill and edge colors, or `:auto`.
 - `label`: legend label; an empty label keeps the series out of the legend.
 - `tag`, `tag_anchor`, `tag_pos`, `tag_orientation`, `tag_padding`, `tag_font_size`: on-series tag text and placement.
-- `bar_width`, `bar_base`: bar-series width and baseline.
-- `order`: nonnegative draw order; `0` is assigned by `add_series`.
+- `order`: nonnegative draw order; `0` is assigned by [`add_series`](@ref).
 """
-mutable struct DataSeries
-    kind             ::Symbol  # type of data series, e.g., :line, :scatter, :bar, etc.
-    X                ::AbstractArray
-    Y                ::AbstractArray
+mutable struct LineSeries <: DataSeries
+    X                ::AbstractVector
+    Y                ::AbstractVector
     line_style       ::Symbol
     line_width       ::Float64
     color            ::Union{Symbol,Color}
@@ -49,26 +52,28 @@ mutable struct DataSeries
     tag_orientation  ::Symbol
     tag_padding      ::Union{Nothing,Float64}
     tag_font_size    ::Union{Nothing,Float64}
-    bar_width        ::Float64
-    bar_base         ::Float64
     order            ::Int
 
-    function DataSeries(kind::Symbol, X::AbstractArray, Y::AbstractArray;
-                            line_style=:solid,
-                            line_width=0.5,
-                            color=:auto,
-                            dash=Float64[],
-                            mark=:none, mark_size=2.5,
-                            mark_color=:white, mark_stroke_color=:auto,
-                            label="", tag="", tag_anchor=:top, tag_pos=0.5,
-                            tag_orientation=:horizontal,
-                            tag_padding::Union{Nothing,Real}=nothing,
-                            tag_font_size::Union{Nothing,Real}=nothing,
-                            bar_width=0.0,
-                            bar_base=0.0,
-                            order=0
+    function LineSeries(
+        X::AbstractVector,
+        Y::AbstractVector;
+        line_style=:solid,
+        line_width=0.5,
+        color=:auto,
+        dash=Float64[],
+        mark=:none,
+        mark_size=2.5,
+        mark_color=:white,
+        mark_stroke_color=:auto,
+        label="",
+        tag="",
+        tag_anchor=:top,
+        tag_pos=0.5,
+        tag_orientation=:horizontal,
+        tag_padding::Union{Nothing,Real}=nothing,
+        tag_font_size::Union{Nothing,Real}=nothing,
+        order=0,
     )
-        kind in [:line, :scatter, :bar] || throw(ArgumentError("Invalid data series kind: $(repr(kind))"))
         length(X) == length(Y) || throw(ArgumentError("Length of X and Y arrays must be equal"))
         line_style in _line_style_list || throw(ArgumentError("Invalid line style: $(repr(line_style))"))
         mark in _mark_list || throw(ArgumentError("Invalid mark shape: $(repr(mark))"))
@@ -78,8 +83,6 @@ mutable struct DataSeries
         tag_font_size === nothing || tag_font_size > 0 || throw(ArgumentError("Tag font size must be positive"))
         line_width > 0 || throw(ArgumentError("Line width must be greater than zero"))
         mark_size > 0 || throw(ArgumentError("Mark size must be greater than zero"))
-        bar_width >= 0 || throw(ArgumentError("Bar width must be non-negative"))
-
 
         color = color === :auto ? color : resolve_color(color)
         mark_color = mark_color === :auto ? mark_color : resolve_color(mark_color)
@@ -99,21 +102,76 @@ mutable struct DataSeries
             line_style = :dash
         end
 
-        return new(kind, X[1:n], Y[1:n],
-                    line_style, line_width, color,
-                    dash,
-                    mark, mark_size, mark_color, mark_stroke_color,
-                    label, tag, tag_anchor, tag_pos, tag_orientation,
-                    tag_padding === nothing ? nothing : float(tag_padding),
-                    tag_font_size === nothing ? nothing : float(tag_font_size),
-                    bar_width, bar_base,
-                    order)
+        return new(
+            X[1:n],
+            Y[1:n],
+            line_style,
+            line_width,
+            color,
+            dash,
+            mark,
+            mark_size,
+            mark_color,
+            mark_stroke_color,
+            label,
+            tag,
+            tag_anchor,
+            tag_pos,
+            tag_orientation,
+            tag_padding === nothing ? nothing : float(tag_padding),
+            tag_font_size === nothing ? nothing : float(tag_font_size),
+            order,
+        )
     end
 end
 
 
-function DataSeries(X::AbstractArray, Y::AbstractArray; args...)
-    return DataSeries(:line, X, Y; args...)
+"""
+    BarSeries(X::AbstractVector, Y::AbstractVector; kwargs...)
+
+Store the data and styling for a bar chart series.
+
+`X` and `Y` must have equal length. Most users should create series with
+[`add_bar`](@ref), because that helper also attaches the series to a chart and
+resolves `color=:auto` against the chart palette.
+
+# Keyword options
+- `color`: series fill color, or `:auto` for later chart palette assignment.
+- `line_width`: positive bar outline stroke width.
+- `label`: legend label; an empty label keeps the series out of the legend.
+- `bar_width`: bar width in x-data units (`0` enables auto width).
+- `bar_base`: bar baseline in y-data units.
+- `order`: nonnegative draw order; `0` is assigned by [`add_series`](@ref).
+"""
+mutable struct BarSeries <: DataSeries
+    X         ::AbstractVector
+    Y         ::AbstractVector
+    color     ::Union{Symbol,Color}
+    line_width::Float64
+    label     ::AbstractString
+    bar_width ::Float64
+    bar_base  ::Float64
+    order     ::Int
+
+    function BarSeries(
+        X::AbstractVector,
+        Y::AbstractVector;
+        color=:auto,
+        line_width=0.5,
+        label="",
+        bar_width=0.0,
+        bar_base=0.0,
+        order=0,
+    )
+        length(X) == length(Y) || throw(ArgumentError("Length of X and Y arrays must be equal"))
+        line_width > 0 || throw(ArgumentError("Line width must be greater than zero"))
+        bar_width >= 0 || throw(ArgumentError("Bar width must be non-negative"))
+
+        color = color === :auto ? color : resolve_color(color)
+        n = min(length(X), length(Y))
+
+        return new(X[1:n], Y[1:n], color, line_width, label, bar_width, bar_base, order)
+    end
 end
 
 

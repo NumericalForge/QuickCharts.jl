@@ -4,10 +4,9 @@ function _show_quoted(io::IO, value::AbstractString)
     return show(io, String(value))
 end
 
-function Base.show(io::IO, series::DataSeries)
-    print(io, "DataSeries(")
-    show(io, series.kind)
-    print(io, ", n=", length(series.X))
+function Base.show(io::IO, series::LineSeries)
+    print(io, "LineSeries(")
+    print(io, "n=", length(series.X))
     if !isempty(series.label)
         print(io, ", label=")
         _show_quoted(io, series.label)
@@ -16,6 +15,34 @@ function Base.show(io::IO, series::DataSeries)
     show(io, series.line_style)
     print(io, ", mark=")
     show(io, series.mark)
+    print(io, ", order=", series.order)
+    print(io, ")")
+    return nothing
+end
+
+function Base.show(io::IO, series::BarSeries)
+    print(io, "BarSeries(")
+    print(io, "n=", length(series.X))
+    if !isempty(series.label)
+        print(io, ", label=")
+        _show_quoted(io, series.label)
+    end
+    print(io, ", line_width=", series.line_width)
+    print(io, ", order=", series.order)
+    print(io, ")")
+    return nothing
+end
+
+function Base.show(io::IO, series::ContourSeries)
+    print(io, "ContourSeries(")
+    print(io, "mode=")
+    show(io, series.filled ? :filled : :line)
+    print(io, ", size=", length(series.y), "x", length(series.x))
+    print(io, ", levels=", length(series.levels))
+    if !isempty(series.label)
+        print(io, ", label=")
+        _show_quoted(io, series.label)
+    end
     print(io, ", order=", series.order)
     print(io, ")")
     return nothing

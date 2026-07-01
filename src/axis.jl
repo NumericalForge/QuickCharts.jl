@@ -36,6 +36,7 @@ mutable struct Axis<:FigureComponent
     tick_labels::AbstractArray
     manual_ticks::Bool
     manual_tick_labels::Bool
+    show_ticks::Bool
     tick_length::Float64
     nticks     ::Int
     tick_exponent::Int
@@ -54,7 +55,7 @@ mutable struct Axis<:FigureComponent
         label::AbstractString="",
         font::String="serif",
         font_size::Real=7.0,
-        ticks::AbstractArray=Real[],
+        ticks=Real[],
         tick_labels::AbstractArray=String[],
         tick_length::Real=3.0,
         nticks::Int=6,
@@ -68,6 +69,15 @@ mutable struct Axis<:FigureComponent
             end
         end
 
+        show_ticks = true
+        if ticks === :none
+            show_ticks = false
+            isempty(tick_labels) || throw(ArgumentError("Axis: tick_labels must be empty when ticks=:none"))
+            ticks = Float64[]
+        elseif !(ticks isa AbstractArray)
+            throw(ArgumentError("Axis: ticks must be an array or :none"))
+        end
+
         if length(tick_labels)>0
             length(ticks) == length(tick_labels) || throw(ArgumentError("Axis: the length of labels must match the number of ticks"))
         end
@@ -75,11 +85,12 @@ mutable struct Axis<:FigureComponent
         length(limits) in (0, 2) || throw(ArgumentError("Axis: limits must have length 2 (manual) or be empty (auto)"))
         auto_limits = length(limits) == 0
         limits = auto_limits ? [0.0, 0.0] : collect(float.(limits))
-        manual_ticks = length(ticks) > 0
-        manual_tick_labels = length(tick_labels) > 0
+        ticks = collect(float.(ticks))
+        manual_ticks = show_ticks && length(ticks) > 0
+        manual_tick_labels = show_ticks && length(tick_labels) > 0
 
         return new(direction, location, limits, auto_limits, label, font, font_size, ticks, tick_labels,
-            manual_ticks, manual_tick_labels, tick_length, nticks, 0, TextBox(), 0.0, 0.0, 3.0, 0.0, 0.0, Frame())
+            manual_ticks, manual_tick_labels, show_ticks, tick_length, nticks, 0, TextBox(), 0.0, 0.0, 3.0, 0.0, 0.0, Frame())
     end
 end
 
@@ -239,7 +250,11 @@ function configure!(ax::Axis)
     end
 
     # configure ticks
-    if !ax.manual_ticks || length(ax.ticks) == 0
+    if !ax.show_ticks
+        ax.ticks = Float64[]
+        ax.tick_labels = String[]
+        _configure_exponent_box!(ax, 0)
+    elseif !ax.manual_ticks || length(ax.ticks) == 0
         vinf, vsup = ax.limits
         dv = get_bin_length(vinf, vsup, ax.nticks)
         digits = _tick_round_digits(dv)
@@ -265,10 +280,10 @@ function configure!(ax::Axis)
         _configure_exponent_box!(ax, exponent)
     end
 
-    ax.nticks = max(length(ax.ticks) - 1, 0)
+    ax.nticks = ax.show_ticks ? max(length(ax.ticks) - 1, 0) : 0
 
     # configure size (axis dimensions do do not include tick lengths)
-    ax.tick_length = 0.4*ax.font_size
+    ax.tick_length = ax.show_ticks ? 0.4*ax.font_size : 0.0
     ax.inner_sep = 0.4*ax.font_size
     tk_lbs_width, tk_lbs_height = _axis_tick_label_extent(ax)
     label_height = getsize(ax.label, ax.font_size)[2]

@@ -22,7 +22,11 @@ cm
 Chart
 ChartGrid
 DataSeries
+LineSeries
+BarSeries
+ContourSeries
 Legend
+Colorbar
 Annotation
 Color
 Colormap
@@ -37,6 +41,7 @@ add_series
 add_line
 add_scatter
 add_bar
+add_contour
 ```
 
 ## Figure Composition

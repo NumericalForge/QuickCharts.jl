@@ -3,7 +3,7 @@
 QuickCharts builds figures from a small set of plotting primitives:
 
 - `Chart` creates a single set of axes.
-- `add_line`, `add_scatter`, and `add_bar` add data series.
+- `add_line`, `add_scatter`, `add_bar`, and `add_contour` add data series.
 - `Annotation` and `add_annotation` add plot-area notes.
 - `ChartGrid` combines charts into multi-panel figures.
 - `VideoBuilder` and `add_frame` accumulate frames for animation export.
@@ -51,6 +51,81 @@ save(chart, "getting-started.svg")
 ![](getting-started.svg)
 
 QuickCharts renders to `.pdf`, `.png`, `.svg`, and `.ps`.
+
+## Contours
+
+Contour plots use a rectilinear grid described by `x`, `y`, and a `z` matrix
+with size `(length(y), length(x))`:
+
+```@example getting_started
+cx = collect(range(-2, 2; length=31))
+cy = collect(range(-2, 2; length=25))
+cz = [sin(xi) * cos(yi) for yi in cy, xi in cx]
+
+line_contour = Chart(
+    size = (10cm, 7cm),
+    title = "Line Contours",
+    background = :white,
+    xlabel = "`x`",
+    ylabel = "`y`",
+)
+
+add_contour(line_contour, cx, cy, cz; levels=-0.9:0.3:0.9, color=:black, label="`sin(x) cos(y)`")
+save(line_contour, "getting-started-contour-lines.svg")
+```
+
+![](getting-started-contour-lines.svg)
+
+Filled contours draw isolines too unless `line_style = :none`:
+
+```@example getting_started
+filled_contour = Chart(
+    size = (10cm, 7cm),
+    title = "Filled Contours",
+    background = :white,
+    xlabel = "`x`",
+    ylabel = "`y`",
+)
+
+add_contour(
+    filled_contour,
+    cx,
+    cy,
+    cz;
+    filled = true,
+    levels = -0.9:0.3:0.9,
+    color = :black,
+    colorbar = :right,
+    colorbar_label = "`sin(x) cos(y)`",
+)
+save(filled_contour, "getting-started-contour-filled.svg")
+```
+
+![](getting-started-contour-filled.svg)
+
+```@example getting_started
+filled_no_lines = Chart(
+    size = (10cm, 7cm),
+    title = "Filled Without Lines",
+    background = :white,
+    xlabel = "`x`",
+    ylabel = "`y`",
+)
+
+add_contour(
+    filled_no_lines,
+    cx,
+    cy,
+    cz;
+    filled = true,
+    levels = -0.9:0.3:0.9,
+    line_style = :none,
+    colorbar = :right,
+)
+save(filled_no_lines, "getting-started-contour-filled-nolines.svg")
+```
+
+![](getting-started-contour-filled-nolines.svg)
 
 ## Text and Math
 

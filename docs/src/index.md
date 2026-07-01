@@ -8,10 +8,10 @@ end
 
 `QuickCharts.jl` provides chart-focused plotting primitives for building publication-ready figures:
 
-- `Chart` for line, scatter, and bar plots.
+- `Chart` for line, scatter, bar, and contour plots.
 - `ChartGrid` for multi-panel layouts.
 - `VideoBuilder` for frame-by-frame animation export.
-- `Annotation`, `Legend`, `Color`, `Colormap`, and math-aware text rendering utilities.
+- `Annotation`, `Legend`, `Colorbar`, `Color`, `Colormap`, and math-aware text rendering utilities.
 
 The package centers on a small plotting surface: single charts, chart grids, videos, legends, annotations, colors, colormaps, and math-aware labels.
 
