@@ -17,18 +17,22 @@ function empty_grid()
 end
 
 @test sprint(show, VideoBuilder()) == "VideoBuilder(frames=0, framerate=12.0, codec=auto)"
+@test sprint(show, VideoBuilder(duration=2.5)) == "VideoBuilder(frames=0, duration=2.5, codec=auto)"
 
 video = VideoBuilder()
 @test_throws QuickCharts.QuickChartsException save(video, joinpath("output", "empty.mp4"))
 @test_throws ArgumentError VideoBuilder(framerate=0)
+@test_throws ArgumentError VideoBuilder(duration=0)
+@test_throws ArgumentError VideoBuilder(framerate=12, duration=2)
 @test_throws ArgumentError VideoBuilder(bounds_factor=0.9)
 
 frame_root = joinpath("output", "video-builder-frames")
 ispath(frame_root) && rm(frame_root; recursive=true, force=true)
 
-push_video = VideoBuilder(framerate=2, cleanup=false, tempdir=frame_root)
+push_video = VideoBuilder(duration=1, cleanup=false, tempdir=frame_root)
 add_frame(push_video, solid_chart(:white))
 add_frame(push_video, solid_chart(:black))
+@test QuickCharts._video_framerate(push_video) == 2.0
 
 mp4_file = joinpath("output", "video-builder.mp4")
 save(push_video, mp4_file)

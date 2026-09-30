@@ -2,7 +2,8 @@
 
 """
     VideoBuilder(;
-        framerate=12,
+        framerate=nothing,
+        duration=nothing,
         codec=nothing,
         cleanup=true,
         tempdir=nothing,
@@ -12,7 +13,8 @@
 Accumulate `Figure` frames and encode them to a video with `save`.
 
 # Arguments
-- `framerate::Real`: output frame rate in frames per second.
+- `framerate::Union{Nothing,Real}`: output frame rate in frames per second. When both timing options are omitted, the default is 12 fps.
+- `duration::Union{Nothing,Real}`: requested video duration in seconds. The frame rate is computed from the final frame count when the video is saved.
 - `codec::Union{Nothing,AbstractString}`: video codec passed to `ffmpeg`; `nothing` uses a format-dependent default.
 - `cleanup::Bool`: remove temporary PNG frames after successful encoding.
 - `tempdir::Union{Nothing,AbstractString}`: parent directory for the temporary frame directory; `nothing` uses the system temporary location.
@@ -21,6 +23,7 @@ Accumulate `Figure` frames and encode them to a video with `save`.
 
 # Notes
 - `VideoBuilder` stores figure references exactly as they are passed to `add_frame`. If the same mutable figure is modified after being added, the saved video will reflect the later state.
+- `framerate` and `duration` are mutually exclusive.
 - All frames must render to the same pixel size. `save(video, ...)` throws a `QuickChartsException` when frame sizes differ.
 - Supported output formats are currently `.mp4` and `.avi`.
 
@@ -36,7 +39,8 @@ video = VideoBuilder(framerate=12, freeze_scale=true, bounds_factor=1.05)
 """
 mutable struct VideoBuilder
     frames::Vector{Figure}
-    framerate::Float64
+    framerate::Union{Nothing,Float64}
+    duration::Union{Nothing,Float64}
     codec::Union{Nothing,String}
     cleanup::Bool
     tempdir::Union{Nothing,String}
@@ -44,26 +48,33 @@ mutable struct VideoBuilder
     bounds_factor::Float64
 
     function VideoBuilder(;
-        framerate::Real=12.0,
+        framerate::Union{Nothing,Real}=nothing,
+        duration::Union{Nothing,Real}=nothing,
         codec::Union{Nothing,AbstractString}=nothing,
         cleanup::Bool=true,
         tempdir::Union{Nothing,AbstractString}=nothing,
         freeze_scale::Bool=false,
         bounds_factor::Real=1.0,
     )
-        framerate > 0 || throw(ArgumentError("framerate must be positive"))
+        framerate === nothing || duration === nothing || throw(ArgumentError("framerate and duration are mutually exclusive"))
+        framerate === nothing || framerate > 0 || throw(ArgumentError("framerate must be positive"))
+        duration === nothing || duration > 0 || throw(ArgumentError("duration must be positive"))
         bounds_factor >= 1.0 || throw(ArgumentError("bounds_factor must be at least 1.0"))
         tempdir === nothing || !isempty(tempdir) || throw(ArgumentError("tempdir must be a non-empty string or nothing"))
+        framerate === nothing && duration === nothing && (framerate = 12.0)
+        framerate_value = framerate === nothing ? nothing : float(framerate)
+        duration_value = duration === nothing ? nothing : float(duration)
         codec_string = codec === nothing ? nothing : string(codec)
         tempdir_string = tempdir === nothing ? nothing : string(tempdir)
-        return new(Figure[], float(framerate), codec_string, cleanup, tempdir_string, freeze_scale, float(bounds_factor))
+        return new(Figure[], framerate_value, duration_value, codec_string, cleanup, tempdir_string, freeze_scale, float(bounds_factor))
     end
 end
 
 
 function Base.show(io::IO, video::VideoBuilder)
     codec = video.codec === nothing ? "auto" : repr(video.codec)
-    print(io, "VideoBuilder(frames=$(length(video.frames)), framerate=$(video.framerate), codec=$codec)")
+    timing = video.duration === nothing ? "framerate=$(video.framerate)" : "duration=$(video.duration)"
+    print(io, "VideoBuilder(frames=$(length(video.frames)), $timing, codec=$codec)")
 end
 
 
@@ -136,6 +147,12 @@ end
 _video_framerate_string(framerate::Real) = @sprintf("%.6f", framerate)
 
 
+function _video_framerate(video::VideoBuilder)
+    video.duration === nothing && return video.framerate
+    return length(video.frames) / video.duration
+end
+
+
 function _video_ffmpeg_args(video::VideoBuilder, ext::AbstractString, frame_dir::AbstractString, filename::AbstractString)
     codec = _video_codec(video, ext)
     args = String[
@@ -144,7 +161,7 @@ function _video_ffmpeg_args(video::VideoBuilder, ext::AbstractString, frame_dir:
         "-loglevel",
         "error",
         "-framerate",
-        _video_framerate_string(video.framerate),
+        _video_framerate_string(_video_framerate(video)),
         "-i",
         joinpath(frame_dir, "frame-%06d.png"),
         "-c:v",

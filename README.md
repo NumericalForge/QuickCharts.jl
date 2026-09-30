@@ -53,7 +53,7 @@ save(chart, "chart.svg", "chart.pdf")
 using QuickCharts
 
 x = collect(range(0, 2π; length = 120))
-video = VideoBuilder(framerate = 12, freeze_scale = true, bounds_factor = 1.05)
+video = VideoBuilder(duration = 1.5, freeze_scale = true, bounds_factor = 1.05)
 
 for phase in range(0, 2π; length = 18)
     frame = Chart(
@@ -75,6 +75,9 @@ save(video, "phase-shift.mp4")
 
 Set `freeze_scale=true` when you want all frames to reuse the view from frame 1.
 Use `bounds_factor>1` to add extra space around that frozen view.
+Set either `duration` in seconds or `framerate` in frames per second. When
+`duration` is used, the effective frame rate is computed from the number of
+frames when the video is saved.
 
 ## Documentation
 

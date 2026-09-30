@@ -252,10 +252,12 @@ Use `VideoBuilder` when you want to render a sequence of `Chart` or
 `ChartGrid` values to a video file. Each frame is stored when you call
 `add_frame`, and all frames must render to the same pixel size. Set
 `freeze_scale=true` to reuse the view from frame 1 across the whole animation,
-and use `bounds_factor>1` when that frozen view needs extra space.
+and use `bounds_factor>1` when that frozen view needs extra space. Set either
+`duration` in seconds or `framerate` in frames per second. When `duration` is
+provided, the effective frame rate is computed from the final frame count.
 
 ```@example getting_started
-video = VideoBuilder(framerate = 10, freeze_scale = true, bounds_factor = 1.05)
+video = VideoBuilder(duration = 1.2, freeze_scale = true, bounds_factor = 1.05)
 video_x = collect(range(0, 2π; length = 120))
 
 for phase in range(0, 2π; length = 12)
