@@ -333,18 +333,22 @@ function _axis_digits(values; max_digits::Int=5)
     isempty(values) && return 0
     cleaned = [isapprox(v, 0.0; atol=1e-12) ? 0.0 : v for v in values]
 
-    if all(v -> isapprox(v, round(v); atol=1e-8, rtol=1e-8), cleaned)
-        return 0
-    end
+    unique_values = sort(unique(cleaned))
+    length(unique_values) < 2 && return _tick_decimal_places(only(unique_values); max_digits=max_digits)
 
-    for digits in 1:max_digits
-        atol = 10.0^(-digits - 1)
-        if all(v -> isapprox(v, round(v; digits=digits); atol=atol, rtol=1e-8), cleaned)
-            return digits
-        end
-    end
+    steps = filter(>(0.0), diff(unique_values))
+    isempty(steps) && return 0
 
-    return max_digits
+    # Base the precision on the actual tick spacing. Using a tolerance based on
+    # the candidate number of digits can collapse a small range (for example,
+    # -0.002:0.0005:0.0) into repeated labels such as "-0.0".
+    step_digits = _tick_decimal_places(minimum(steps); max_digits=max_digits)
+    value_digits = maximum(_tick_decimal_places(value; max_digits=max_digits) for value in unique_values)
+    digits = max(step_digits, value_digits)
+    while digits < max_digits && length(unique(round.(unique_values; digits=digits))) < length(unique_values)
+        digits += 1
+    end
+    return digits
 end
 
 

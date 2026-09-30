@@ -26,6 +26,12 @@ QuickCharts.configure!(ax_small)
 @test "3.1" in ax_small.tick_labels
 @test !isempty(ax_small.exponent_box.text)
 
+small_negative_ticks = [-0.0025, -0.0020, -0.0015, -0.0010, -0.0005, 0.0]
+small_negative_labels, small_negative_exponent = QuickCharts.make_ticklabels(small_negative_ticks)
+@test small_negative_exponent == -3
+@test small_negative_labels == ["-2.5", "-2.0", "-1.5", "-1.0", "-0.5", "0.0"]
+@test length(unique(small_negative_labels)) == length(small_negative_labels)
+
 aint = QuickCharts.Axis(direction=:horizontal, limits=[1.0e4, 4.0e4], ticks=[1.0e4, 2.0e4, 3.0e4, 4.0e4])
 QuickCharts.configure!(aint)
 @test all(!occursin(".", lbl) for lbl in aint.tick_labels)
